@@ -1,10 +1,19 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Users, UserCircle, Shield, KeyRound, LayoutDashboard, ShoppingBasket, TrendingUp, Landmark } from 'lucide-react';
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  Users,
+  UserCircle,
+  Shield,
+  KeyRound,
+  LayoutDashboard,
+  ShoppingBasket,
+  TrendingUp,
+  Landmark,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -16,18 +25,58 @@ import {
   SidebarMenuButton,
   SidebarHeader,
   SidebarFooter,
-} from '@/components/ui/sidebar';
-import { getPayload, hasPermission, type TokenPayload } from '@/lib/auth';
+} from "@/components/ui/sidebar";
+import { getPayload, hasPermission, type TokenPayload } from "@/lib/auth";
 
 const allItems = [
-  { title: 'Dashboard',  href: '/dashboard',               icon: LayoutDashboard, permission: 'dashboard:acessar'   },
-  { title: 'Usuários',   href: '/dashboard/users',          icon: Users,           permission: 'usuarios:visualizar' },
-  { title: 'Clientes',   href: '/dashboard/clients',        icon: UserCircle,      permission: 'clientes:visualizar' },
-  { title: 'Produtos',   href: '/dashboard/products',       icon: ShoppingBasket,  permission: 'produtos:visualizar' },
-  { title: 'Vendas',     href: '/dashboard/sales',          icon: TrendingUp,      permission: 'vendas:visualizar'   },
-  { title: 'Caixa',      href: '/dashboard/cash-register',  icon: Landmark,        permission: 'caixa:visualizar'    },
-  { title: 'Roles',      href: '/dashboard/roles',          icon: Shield,          permission: 'perfis:visualizar'   },
-  { title: 'Permissões', href: '/dashboard/permissions',    icon: KeyRound,        permission: 'perfis:visualizar'   },
+  {
+    title: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+    permission: "dashboard:acessar",
+  },
+  {
+    title: "Usuários",
+    href: "/dashboard/users",
+    icon: Users,
+    permission: "usuarios:visualizar",
+  },
+  {
+    title: "Clientes",
+    href: "/dashboard/clients",
+    icon: UserCircle,
+    permission: "clientes:visualizar",
+  },
+  {
+    title: "Produtos",
+    href: "/dashboard/products",
+    icon: ShoppingBasket,
+    permission: "produtos:visualizar",
+  },
+  {
+    title: "Vendas",
+    href: "/dashboard/sales",
+    icon: TrendingUp,
+    permission: "vendas:visualizar",
+  },
+  {
+    title: "Caixa",
+    href: "/dashboard/cash-register",
+    icon: Landmark,
+    permission: "caixa:visualizar",
+  },
+  {
+    title: "Roles",
+    href: "/dashboard/roles",
+    icon: Shield,
+    permission: "perfis:visualizar",
+  },
+  {
+    title: "Permissões",
+    href: "/dashboard/permissions",
+    icon: KeyRound,
+    permission: "perfis:visualizar",
+  },
 ];
 
 export function AppSidebar() {
@@ -90,7 +139,9 @@ export function AppSidebar() {
         <SidebarFooter className="border-t px-4 py-3">
           <div className="flex flex-col">
             <span className="text-sm font-medium truncate">{payload.name}</span>
-            <span className="text-xs text-muted-foreground truncate">{payload.email}</span>
+            <span className="text-xs text-muted-foreground truncate">
+              {payload.email}
+            </span>
           </div>
         </SidebarFooter>
       )}
