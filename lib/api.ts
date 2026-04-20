@@ -1,34 +1,42 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL;
 
-type LoginPayload = { email: string; password: string };
-type RegisterPayload = { name: string; email: string; password: string };
-
-export async function login(payload: LoginPayload) {
-  const res = await fetch(`${BASE}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-    throw new Error(error.message ?? 'Erro ao fazer login');
-  }
-
-  return res.json() as Promise<{ access_token: string }>;
+function getToken() {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('token');
 }
 
-export async function register(payload: RegisterPayload) {
-  const res = await fetch(`${BASE}/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken();
+  const res = await fetch(`${BASE}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
   });
-
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.message ?? 'Erro ao registrar');
+    throw new Error(error.message ?? `HTTP ${res.status}`);
   }
+  return res.json() as Promise<T>;
+}
 
-  return res.json();
+export const api = {
+  get: <T>(path: string) => request<T>(path),
+  post: <T>(path: string, body: unknown) =>
+    request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  put: <T>(path: string, body: unknown) =>
+    request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
+  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+};
+
+export async function login(payload: { email: string; password: string }) {
+  const data = await api.post<{ access_token: string }>('/auth/login', payload);
+  localStorage.setItem('token', data.access_token);
+  return data;
+}
+
+export function logout() {
+  localStorage.removeItem('token');
 }

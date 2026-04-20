@@ -1,7 +1,19 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getStoredToken, isAdmin } from '@/lib/auth';
+
 export default function HomePage() {
-  return (
-    <main className="flex min-h-screen items-center justify-center">
-      <h1 className="text-4xl font-bold text-green-700">AgroERP</h1>
-    </main>
-  );
+  const router = useRouter();
+
+  useEffect(() => {
+    if (getStoredToken() && isAdmin()) {
+      router.replace('/dashboard');
+    } else {
+      router.replace('/login');
+    }
+  }, [router]);
+
+  return null;
 }
