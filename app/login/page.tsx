@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { login } from '@/lib/api';
-import { hasPermission } from '@/lib/auth';
+import { hasPermission, isSuperAdminUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +24,10 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login({ email, password });
+      if (isSuperAdminUser()) {
+        router.push('/admin');
+        return;
+      }
       if (!hasPermission('dashboard:acessar')) {
         setError('Seu perfil não tem acesso ao painel.');
         return;
