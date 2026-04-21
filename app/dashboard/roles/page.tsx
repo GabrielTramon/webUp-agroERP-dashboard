@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Search } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -18,6 +20,14 @@ export default function RolesPage() {
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Role | null>(null);
+  const [search, setSearch] = useState('');
+
+  const filtered = search.trim()
+    ? roles.filter((r) =>
+        r.name.toLowerCase().includes(search.toLowerCase()) ||
+        r.description?.toLowerCase().includes(search.toLowerCase()),
+      )
+    : roles;
 
   async function load() {
     const [r, p] = await Promise.all([
@@ -40,6 +50,16 @@ export default function RolesPage() {
         <Button onClick={openCreate}>Nova role</Button>
       </div>
 
+      <div className="relative mb-4 max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Pesquisar por nome ou descrição..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -50,7 +70,10 @@ export default function RolesPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {roles.map((r) => (
+          {filtered.length === 0 && (
+            <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhuma role encontrada.</TableCell></TableRow>
+          )}
+          {filtered.map((r) => (
             <TableRow key={r.id}>
               <TableCell className="font-medium">{r.name}</TableCell>
               <TableCell className="text-muted-foreground">{r.description ?? '—'}</TableCell>

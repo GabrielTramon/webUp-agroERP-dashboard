@@ -13,6 +13,7 @@ import {
   ShoppingBasket,
   TrendingUp,
   Landmark,
+  BarChart2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -64,6 +65,12 @@ const allItems = [
     href: "/dashboard/cash-register",
     icon: Landmark,
     permission: "caixa:visualizar",
+  },
+  {
+    title: "Financeiro",
+    href: "/dashboard/financial",
+    icon: BarChart2,
+    permission: "financeiro:visualizar",
   },
   {
     title: "Roles",

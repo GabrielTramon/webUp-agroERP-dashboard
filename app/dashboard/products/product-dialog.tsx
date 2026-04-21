@@ -16,6 +16,7 @@ type Product = {
   name: string;
   description: string | null;
   price: number;
+  costPrice: number | null;
   stock: number;
   imageUrl: string | null;
 };
@@ -28,28 +29,30 @@ type Props = {
 };
 
 export function ProductDialog({ open, onClose, onSuccess, product }: Props) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
-  const [stock, setStock] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [name, setName]             = useState('');
+  const [description, setDesc]      = useState('');
+  const [price, setPrice]           = useState('');
+  const [costPrice, setCostPrice]   = useState('');
+  const [stock, setStock]           = useState('');
+  const [imageUrl, setImageUrl]     = useState('');
+  const [imagePreview, setPreview]  = useState<string | null>(null);
+  const [uploading, setUploading]   = useState(false);
+  const [error, setError]           = useState('');
+  const [loading, setLoading]       = useState(false);
+  const fileRef                     = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (product) {
       setName(product.name);
-      setDescription(product.description ?? '');
+      setDesc(product.description ?? '');
       setPrice(String(product.price));
+      setCostPrice(product.costPrice != null ? String(product.costPrice) : '');
       setStock(String(product.stock));
       setImageUrl(product.imageUrl ?? '');
-      setImagePreview(product.imageUrl ?? null);
+      setPreview(product.imageUrl ?? null);
     } else {
-      setName(''); setDescription(''); setPrice(''); setStock('');
-      setImageUrl(''); setImagePreview(null);
+      setName(''); setDesc(''); setPrice(''); setCostPrice('');
+      setStock(''); setImageUrl(''); setPreview(null);
     }
     setError('');
     if (fileRef.current) fileRef.current.value = '';
@@ -72,7 +75,7 @@ export function ProductDialog({ open, onClose, onSuccess, product }: Props) {
       if (!res.ok) throw new Error('Erro ao fazer upload da imagem');
       const data = await res.json() as { url: string };
       setImageUrl(data.url);
-      setImagePreview(data.url);
+      setPreview(data.url);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro no upload');
     } finally {
@@ -85,12 +88,14 @@ export function ProductDialog({ open, onClose, onSuccess, product }: Props) {
     setError('');
     setLoading(true);
     try {
+      const parsedCost = costPrice.trim() !== '' ? parseFloat(costPrice) : undefined;
       const payload = {
         name,
-        description: description || undefined,
-        price: parseFloat(price),
-        stock: parseInt(stock, 10),
-        imageUrl: imageUrl || undefined,
+        description:  description || undefined,
+        price:        parseFloat(price),
+        costPrice:    parsedCost,
+        stock:        parseInt(stock, 10),
+        imageUrl:     imageUrl || undefined,
       };
       if (product) {
         await api.put(`/products/${product.id}`, payload);
@@ -105,6 +110,12 @@ export function ProductDialog({ open, onClose, onSuccess, product }: Props) {
     }
   }
 
+  const priceVal    = parseFloat(price)     || 0;
+  const costVal     = parseFloat(costPrice) || 0;
+  const margin      = priceVal > 0 && costVal > 0
+    ? ((priceVal - costVal) / priceVal) * 100
+    : null;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -118,11 +129,11 @@ export function ProductDialog({ open, onClose, onSuccess, product }: Props) {
           </div>
           <div className="space-y-1">
             <Label>Descrição</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Opcional" />
+            <Input value={description} onChange={(e) => setDesc(e.target.value)} placeholder="Opcional" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label>Preço (R$)</Label>
+              <Label>Preço de venda (R$)</Label>
               <Input
                 required
                 type="number"
@@ -133,15 +144,41 @@ export function ProductDialog({ open, onClose, onSuccess, product }: Props) {
               />
             </div>
             <div className="space-y-1">
-              <Label>Estoque</Label>
+              <Label>
+                Preço de custo (R$)
+                <span className="ml-1 text-xs text-muted-foreground font-normal">opcional</span>
+              </Label>
               <Input
-                required
                 type="number"
+                step="0.01"
                 min="0"
-                value={stock}
-                onChange={(e) => setStock(e.target.value)}
+                placeholder="0,00"
+                value={costPrice}
+                onChange={(e) => setCostPrice(e.target.value)}
               />
             </div>
+          </div>
+
+          {margin !== null && (
+            <div className={`text-xs font-medium rounded-lg px-3 py-2 ${
+              margin >= 20 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30'
+              : margin >= 10 ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/30'
+              : 'bg-red-50 text-red-700 dark:bg-red-950/30'
+            }`}>
+              Margem estimada: {margin.toFixed(1)}%
+              {' · '}Lucro por unidade: R$ {(priceVal - costVal).toFixed(2)}
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <Label>Estoque</Label>
+            <Input
+              required
+              type="number"
+              min="0"
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+            />
           </div>
           <div className="space-y-2">
             <Label>Imagem</Label>

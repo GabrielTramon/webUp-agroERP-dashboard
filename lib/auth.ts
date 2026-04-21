@@ -2,9 +2,10 @@ export type TokenPayload = {
   sub: string;
   name: string;
   email: string;
-  role: string;
-  companyId: string;
-  companyName: string;
+  role?: string;
+  companyId?: string;
+  companyName?: string;
+  isSuperAdmin: boolean;
   permissions: string[];
 };
 
@@ -31,10 +32,15 @@ export function getPayload(): TokenPayload | null {
 export function hasPermission(permission: string): boolean {
   const payload = getPayload();
   if (!payload) return false;
+  if (payload.isSuperAdmin) return true;
   if (payload.role === 'ADMIN') return true;
   return payload.permissions.includes(permission);
 }
 
 export function isAdmin(): boolean {
   return getPayload()?.role === 'ADMIN';
+}
+
+export function isSuperAdminUser(): boolean {
+  return getPayload()?.isSuperAdmin === true;
 }
