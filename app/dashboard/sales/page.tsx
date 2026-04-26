@@ -20,9 +20,10 @@ import {
 import { SearchSelect } from '@/components/ui/search-select';
 import { cn } from '@/lib/utils';
 
-type Product  = { id: string; name: string; price: number; stock: number; imageUrl: string | null; active?: boolean };
+type ActiveDiscount = { percent: number; discountedPrice: number };
+type Product  = { id: string; name: string; price: number; stock: number; imageUrl: string | null; active?: boolean; barcode?: string | null; activeDiscount?: ActiveDiscount | null };
 type Seller   = { id: string; name: string };
-type CartItem = { productId: string; name: string; price: number; quantity: number; stock: number };
+type CartItem = { productId: string; name: string; price: number; originalPrice: number; discountPct: number | null; quantity: number; stock: number };
 type SaleItem = { id: string; quantity: number; price: number; subtotal: number; product: { id: string; name: string } };
 type Sale = {
   id: string; total: number; discount: number;
@@ -91,11 +92,15 @@ function PdvTab() {
   }, []);
 
   const filtered = search.trim()
-    ? products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+    ? products.filter((p) =>
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        (p.barcode && p.barcode.toLowerCase().includes(search.toLowerCase()))
+      )
     : products;
 
   function addToCart(product: Product) {
     if (product.stock === 0) return;
+    const effectivePrice = product.activeDiscount?.discountedPrice ?? product.price;
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === product.id);
       if (existing) {
@@ -106,7 +111,10 @@ function PdvTab() {
       }
       return [...prev, {
         productId: product.id, name: product.name,
-        price: product.price, quantity: 1, stock: product.stock,
+        price: effectivePrice,
+        originalPrice: product.price,
+        discountPct: product.activeDiscount?.percent ?? null,
+        quantity: 1, stock: product.stock,
       }];
     });
   }
@@ -223,8 +231,17 @@ function PdvTab() {
                           {inCart.quantity}
                         </Badge>
                       )}
+                      {p.activeDiscount && (
+                        <Badge variant="secondary" className="h-4 px-1.5 text-[10px] shrink-0 text-emerald-700 bg-emerald-100">
+                          -{p.activeDiscount.percent}%
+                        </Badge>
+                      )}
                     </span>
-                    <span className="text-right tabular-nums">{fmt(p.price)}</span>
+                    <span className="text-right tabular-nums">
+                      {p.activeDiscount ? (
+                        <span className="text-emerald-600 font-semibold">{fmt(p.activeDiscount.discountedPrice)}</span>
+                      ) : fmt(p.price)}
+                    </span>
                     <span className={cn(
                       'text-right tabular-nums',
                       p.stock > 0 && p.stock <= 5 && 'text-amber-600 font-medium',
@@ -281,13 +298,20 @@ function PdvTab() {
                   key={item.productId}
                   className="grid grid-cols-[1fr_72px_80px_90px_28px] gap-x-3 items-center px-3 py-2 text-sm border-b last:border-0 hover:bg-muted/20 group"
                 >
-                  <span className="font-medium truncate">{item.name}</span>
+                  <span className="font-medium truncate flex items-center gap-1">
+                    {item.name}
+                    {item.discountPct && (
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1 rounded">-{item.discountPct}%</span>
+                    )}
+                  </span>
                   <input
                     type="number"
                     min="1"
                     max={item.stock}
+                    step="1"
                     value={item.quantity}
                     onChange={(e) => setQty(item.productId, e.target.value)}
+                    onBlur={(e) => setQty(item.productId, e.target.value)}
                     onClick={(e) => (e.target as HTMLInputElement).select()}
                     className="w-full h-7 text-center rounded-md border border-input bg-transparent text-sm font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
                   />
@@ -314,6 +338,10 @@ function PdvTab() {
                     type="number" min="0" max={MAX_DISCOUNT} step="0.5"
                     placeholder="0" value={discount}
                     onChange={(e) => setDiscount(e.target.value)}
+                    onBlur={(e) => {
+                      const n = parseFloat(e.target.value);
+                      if (e.target.value && !isNaN(n)) setDiscount(String(Math.min(Math.max(n, 0), MAX_DISCOUNT)));
+                    }}
                     className="h-8 pr-6 text-sm"
                   />
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
@@ -793,7 +821,7 @@ function SaleEditDialog({
     if (!sale) return;
     setCart(sale.items.map((i) => ({
       productId: i.product.id, name: i.product.name,
-      price: i.price, quantity: i.quantity, stock: 9999,
+      price: i.price, originalPrice: i.price, discountPct: null, quantity: i.quantity, stock: 9999,
     })));
     setSellerId(sale.seller.id);
     setClientId(sale.client?.id ?? '');
@@ -815,7 +843,7 @@ function SaleEditDialog({
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === product.id);
       if (existing) return prev.map((i) => i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i);
-      return [...prev, { productId: product.id, name: product.name, price: product.price, quantity: 1, stock: product.stock }];
+      return [...prev, { productId: product.id, name: product.name, price: product.price, originalPrice: product.price, discountPct: null, quantity: 1, stock: product.stock }];
     });
     setQuery(''); setResults([]);
   }
@@ -924,7 +952,12 @@ function SaleEditDialog({
                 <Label>Desconto (máx {MAX_DISCOUNT}%)</Label>
                 <div className="relative">
                   <Input type="number" min="0" max={MAX_DISCOUNT} step="0.5" placeholder="0"
-                    value={discount} onChange={(e) => setDiscount(e.target.value)} className="pr-8" />
+                    value={discount} onChange={(e) => setDiscount(e.target.value)}
+                    onBlur={(e) => {
+                      const n = parseFloat(e.target.value);
+                      if (e.target.value && !isNaN(n)) setDiscount(String(Math.min(Math.max(n, 0), MAX_DISCOUNT)));
+                    }}
+                    className="pr-8" />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
                 </div>
               </div>

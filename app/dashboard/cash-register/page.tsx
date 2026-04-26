@@ -329,6 +329,7 @@ function FinalizeSaleModal({
   const [cart, setCart]                               = useState<CartItem[]>([]);
   const [cashierDiscount, setCashierDiscount]         = useState('');
   const [paymentMethod, setPaymentMethod]             = useState<'CASH' | 'DEBIT' | 'CREDIT_CARD'>('CASH');
+  const [installments, setInstallments]               = useState(1);
   const [amountReceived, setAmountReceived]           = useState('');
   const [query, setQuery]                             = useState('');
   const [results, setResults]                         = useState<Product[]>([]);
@@ -347,6 +348,7 @@ function FinalizeSaleModal({
     })));
     setCashierDiscount('');
     setPaymentMethod('CASH');
+    setInstallments(1);
     setAmountReceived('');
     setError('');
     setQuery('');
@@ -413,6 +415,7 @@ function FinalizeSaleModal({
         paymentMethod,
         cashierDiscount: cashDiscountPct || undefined,
         amountReceived:  paymentMethod === 'CASH' ? amountRec : undefined,
+        installments:    paymentMethod === 'CREDIT_CARD' && installments > 1 ? installments : undefined,
         items:           cart.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       });
       onFinalized();
@@ -576,7 +579,7 @@ function FinalizeSaleModal({
                       key={pm}
                       size="sm"
                       variant={paymentMethod === pm ? 'default' : 'outline'}
-                      onClick={() => setPaymentMethod(pm)}
+                      onClick={() => { setPaymentMethod(pm); setInstallments(1); }}
                       className="w-full justify-start gap-2 h-10"
                     >
                       {pm === 'CASH' && <Banknote className="h-4 w-4" />}
@@ -587,6 +590,32 @@ function FinalizeSaleModal({
                   ))}
                 </div>
               </div>
+
+              {paymentMethod === 'CREDIT_CARD' && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Parcelas</Label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[1, 2, 3, 4, 5, 6, 8, 10, 12].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setInstallments(n)}
+                        className={`h-9 rounded-lg border text-sm font-medium transition-colors ${
+                          installments === n
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'hover:bg-muted'
+                        }`}
+                      >
+                        {n === 1 ? '1x' : `${n}x`}
+                      </button>
+                    ))}
+                  </div>
+                  {installments > 1 && (
+                    <p className="text-xs text-muted-foreground">
+                      {installments}x de {fmt(finalTotal / installments)} · 1ª parcela em ~30 dias
+                    </p>
+                  )}
+                </div>
+              )}
 
               {paymentMethod === 'CASH' && (
                 <div className="space-y-3">
@@ -600,9 +629,16 @@ function FinalizeSaleModal({
                         type="number"
                         min={0}
                         step="0.01"
+                        max="999999.99"
                         placeholder={finalTotal.toFixed(2)}
                         value={amountReceived}
                         onChange={(e) => setAmountReceived(e.target.value)}
+                        onBlur={(e) => {
+                          if (!e.target.value) return;
+                          const n = parseFloat(e.target.value);
+                          if (isNaN(n) || n < 0) setAmountReceived('0');
+                          else if (n > 999999.99) setAmountReceived('999999.99');
+                        }}
                         className={`pl-10 h-11 text-base font-semibold ${insufficient ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                       />
                     </div>
