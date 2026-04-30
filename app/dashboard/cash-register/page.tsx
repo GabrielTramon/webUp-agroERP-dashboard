@@ -192,7 +192,7 @@ function CaixaTab() {
         {pending.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center border rounded-lg">Nenhuma venda pendente.</p>
         ) : (
-          <Table>
+          <div className="overflow-x-auto rounded-lg border"><Table className="min-w-125">
             <TableHeader>
               <TableRow>
                 <TableHead>Horário</TableHead>
@@ -219,7 +219,7 @@ function CaixaTab() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+          </Table></div>
         )}
       </div>
 
@@ -228,7 +228,7 @@ function CaixaTab() {
           <Separator />
           <div>
             <h2 className="font-semibold mb-3">Resumo do Caixa</h2>
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
               <SummaryCard icon={TrendingUp}  label="Faturamento do dia" value={fmt(register.summary.grandTotal)}   color="text-foreground" bold />
               <SummaryCard icon={CheckCircle} label="Recebido no caixa"  value={fmt(register.summary.paidTotal)}    color="text-green-600" bold />
               <SummaryCard icon={Clock}       label="Vendas a prazo"     value={fmt(register.summary.creditTotal)}  color="text-amber-600" bold />
@@ -257,7 +257,7 @@ function CaixaTab() {
                   {allDaySales.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-6 text-center">Nenhuma venda registrada hoje.</p>
                   ) : (
-                    <Table>
+                    <div className="overflow-x-auto rounded-lg border"><Table className="min-w-150">
                       <TableHeader>
                         <TableRow>
                           <TableHead>Horário</TableHead>
@@ -301,7 +301,7 @@ function CaixaTab() {
                           );
                         })}
                       </TableBody>
-                    </Table>
+                    </Table></div>
                   )}
                 </>
               );
@@ -448,10 +448,10 @@ function FinalizeSaleModal({
         </DialogHeader>
 
         {sale && (
-          <div className="flex flex-1 min-h-0 overflow-hidden">
+          <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-y-auto md:overflow-hidden">
 
             {/* Coluna esquerda — itens */}
-            <div className="flex-1 flex flex-col gap-5 px-7 py-6 overflow-y-auto border-r min-w-0">
+            <div className="flex flex-col gap-5 px-4 md:px-7 py-6 md:flex-1 md:overflow-y-auto md:border-r md:min-w-0 border-b md:border-b-0">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Itens da venda</p>
 
               <div className="relative">
@@ -553,7 +553,7 @@ function FinalizeSaleModal({
             </div>
 
             {/* Coluna direita — pagamento */}
-            <div className="w-80 shrink-0 flex flex-col gap-5 px-7 py-6 overflow-y-auto bg-muted/10">
+            <div className="md:w-80 shrink-0 flex flex-col gap-5 px-4 md:px-7 py-6 md:overflow-y-auto bg-muted/10">
 
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Pagamento</p>

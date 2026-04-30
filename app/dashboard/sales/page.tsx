@@ -81,6 +81,7 @@ function PdvTab() {
   const [discount, setDiscount]         = useState('');
   const [loadingProds, setLoadingProds] = useState(true);
   const [finalizeOpen, setFinalizeOpen] = useState(false);
+  const [mobileView, setMobileView]     = useState<'products' | 'cart'>('products');
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -162,15 +163,15 @@ function PdvTab() {
   return (
     <div className="flex flex-col h-[calc(100vh-190px)] min-h-[500px] overflow-hidden">
 
-      {/* ── Top bar: só busca ── */}
-      <div className="shrink-0 pb-3">
+      {/* ── Top bar: busca ── */}
+      <div className="shrink-0 pb-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             ref={searchRef}
             autoFocus
             className="pl-9 pr-9 h-10"
-            placeholder="Buscar produto por nome... (ENTER para adicionar)"
+            placeholder="Buscar produto por nome ou código... (ENTER para adicionar)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleSearchKeyDown}
@@ -186,15 +187,45 @@ function PdvTab() {
         </div>
       </div>
 
+      {/* ── Mobile tab switcher ── */}
+      <div className="lg:hidden flex gap-2 shrink-0 pb-2">
+        <button
+          onClick={() => setMobileView('products')}
+          className={cn(
+            'flex-1 text-sm font-medium py-2 rounded-lg border transition-colors',
+            mobileView === 'products'
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'hover:bg-muted border-input',
+          )}
+        >
+          Produtos ({filtered.length})
+        </button>
+        <button
+          onClick={() => setMobileView('cart')}
+          className={cn(
+            'flex-1 text-sm font-medium py-2 rounded-lg border transition-colors',
+            mobileView === 'cart'
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'hover:bg-muted border-input',
+          )}
+        >
+          Carrinho {cart.length > 0 ? `(${cart.length})` : ''}
+        </button>
+      </div>
+
       {/* ── Main: produtos + carrinho ── */}
       <div className="flex flex-1 min-h-0 overflow-hidden rounded-xl border">
 
         {/* Left: lista de produtos */}
-        <div className="w-[44%] flex flex-col overflow-hidden border-r">
-          <div className="shrink-0 grid grid-cols-[1fr_80px_60px_28px] gap-x-3 px-3 py-2 bg-muted/40 border-b">
+        <div className={cn(
+          'flex flex-col overflow-hidden',
+          'lg:w-[44%] lg:border-r',
+          mobileView === 'products' ? 'flex-1 border-r-0' : 'hidden lg:flex',
+        )}>
+          <div className="shrink-0 grid grid-cols-[1fr_80px_28px] lg:grid-cols-[1fr_80px_60px_28px] gap-x-3 px-3 py-2 bg-muted/40 border-b">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Produto</span>
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Preço</span>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Est.</span>
+            <span className="hidden lg:block text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Est.</span>
             <span />
           </div>
 
@@ -216,9 +247,9 @@ function PdvTab() {
                 return (
                   <div
                     key={p.id}
-                    onClick={() => !out && addToCart(p)}
+                    onClick={() => { if (!out) { addToCart(p); if (window.innerWidth < 1024) setMobileView('cart'); } }}
                     className={cn(
-                      'grid grid-cols-[1fr_80px_60px_28px] gap-x-3 px-3 py-2.5 text-sm border-b last:border-0 transition-colors',
+                      'grid grid-cols-[1fr_80px_28px] lg:grid-cols-[1fr_80px_60px_28px] gap-x-3 px-3 py-2.5 text-sm border-b last:border-0 transition-colors',
                       !out && 'cursor-pointer hover:bg-accent',
                       inCart && !out && 'bg-primary/5 hover:bg-primary/10',
                       out && 'opacity-40 cursor-default',
@@ -243,13 +274,13 @@ function PdvTab() {
                       ) : fmt(p.price)}
                     </span>
                     <span className={cn(
-                      'text-right tabular-nums',
+                      'hidden lg:block text-right tabular-nums',
                       p.stock > 0 && p.stock <= 5 && 'text-amber-600 font-medium',
                     )}>
                       {p.stock}
                     </span>
                     <button
-                      onClick={(e) => { e.stopPropagation(); !out && addToCart(p); }}
+                      onClick={(e) => { e.stopPropagation(); if (!out) { addToCart(p); if (window.innerWidth < 1024) setMobileView('cart'); } }}
                       disabled={out}
                       className="flex items-center justify-center h-5 w-5 rounded text-muted-foreground hover:bg-primary hover:text-primary-foreground disabled:opacity-0 transition-colors"
                     >
@@ -270,11 +301,14 @@ function PdvTab() {
         </div>
 
         {/* Right: carrinho */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="shrink-0 grid grid-cols-[1fr_72px_80px_90px_28px] gap-x-3 px-3 py-2 bg-muted/40 border-b">
+        <div className={cn(
+          'flex flex-col overflow-hidden flex-1',
+          mobileView === 'cart' ? '' : 'hidden lg:flex',
+        )}>
+          <div className="shrink-0 grid grid-cols-[1fr_72px_90px_28px] lg:grid-cols-[1fr_72px_80px_90px_28px] gap-x-3 px-3 py-2 bg-muted/40 border-b">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Produto</span>
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">Qtd</span>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Preço</span>
+            <span className="hidden lg:block text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Preço</span>
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Subtotal</span>
             <button
               onClick={() => setCart([])}
@@ -296,7 +330,7 @@ function PdvTab() {
               cart.map((item) => (
                 <div
                   key={item.productId}
-                  className="grid grid-cols-[1fr_72px_80px_90px_28px] gap-x-3 items-center px-3 py-2 text-sm border-b last:border-0 hover:bg-muted/20 group"
+                  className="grid grid-cols-[1fr_72px_90px_28px] lg:grid-cols-[1fr_72px_80px_90px_28px] gap-x-3 items-center px-3 py-2 text-sm border-b last:border-0 hover:bg-muted/20 group"
                 >
                   <span className="font-medium truncate flex items-center gap-1">
                     {item.name}
@@ -315,7 +349,7 @@ function PdvTab() {
                     onClick={(e) => (e.target as HTMLInputElement).select()}
                     className="w-full h-7 text-center rounded-md border border-input bg-transparent text-sm font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <span className="text-right tabular-nums text-muted-foreground">{fmt(item.price)}</span>
+                  <span className="hidden lg:block text-right tabular-nums text-muted-foreground">{fmt(item.price)}</span>
                   <span className="text-right tabular-nums font-semibold">{fmt(item.price * item.quantity)}</span>
                   <button
                     onClick={() => removeItem(item.productId)}
@@ -330,7 +364,45 @@ function PdvTab() {
 
           {/* Footer */}
           <div className="shrink-0 border-t px-4 py-3">
-            <div className="flex items-center gap-4">
+            {/* Mobile footer */}
+            <div className="flex sm:hidden flex-col gap-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Desc.</Label>
+                  <div className="relative w-16">
+                    <Input
+                      type="number" min="0" max={MAX_DISCOUNT} step="0.5"
+                      placeholder="0" value={discount}
+                      onChange={(e) => setDiscount(e.target.value)}
+                      onBlur={(e) => {
+                        const n = parseFloat(e.target.value);
+                        if (e.target.value && !isNaN(n)) setDiscount(String(Math.min(Math.max(n, 0), MAX_DISCOUNT)));
+                      }}
+                      className="h-8 pr-5 text-sm"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  {discountAmt > 0 && (
+                    <p className="text-xs text-muted-foreground tabular-nums line-through">{fmt(gross)}</p>
+                  )}
+                  <div className="font-bold">
+                    <span className="text-muted-foreground text-sm mr-1">Total</span>
+                    <span className="text-primary tabular-nums text-lg">{fmt(total)}</span>
+                  </div>
+                </div>
+              </div>
+              <Button
+                className="w-full h-10 text-sm font-bold tracking-wide"
+                onClick={() => setFinalizeOpen(true)}
+                disabled={cart.length === 0}
+              >
+                FINALIZAR VENDA
+              </Button>
+            </div>
+            {/* Desktop footer */}
+            <div className="hidden sm:flex items-center gap-4">
               <div className="flex items-center gap-2 shrink-0">
                 <Label className="text-xs text-muted-foreground whitespace-nowrap">Desconto</Label>
                 <div className="relative w-20">
@@ -347,9 +419,7 @@ function PdvTab() {
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
                 </div>
               </div>
-
               <div className="flex-1" />
-
               <div className="flex items-center gap-5 text-sm shrink-0">
                 {discountAmt > 0 && (
                   <span className="text-muted-foreground tabular-nums">
@@ -361,7 +431,6 @@ function PdvTab() {
                   <span className="text-primary tabular-nums">{fmt(total)}</span>
                 </div>
               </div>
-
               <Button
                 className="h-11 px-8 text-sm font-bold tracking-wide shrink-0"
                 onClick={() => setFinalizeOpen(true)}
@@ -647,11 +716,11 @@ function HistoryTab() {
           Nenhuma venda encontrada.
         </p>
       ) : (
-        <div className="rounded-xl border overflow-hidden">
+        <div className="rounded-xl border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Data</TableHead>
+                <TableHead className="whitespace-nowrap">Data</TableHead>
                 <TableHead>Vendedor</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Tipo</TableHead>

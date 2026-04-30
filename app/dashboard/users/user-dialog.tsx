@@ -11,6 +11,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { formatPhone, formatCPF } from '@/lib/utils';
 
 type Role = { id: string; name: string };
 type User = {
@@ -44,8 +45,8 @@ export function UserDialog({ open, onClose, onSuccess, roles, user }: Props) {
       setName(user.name);
       setEmail(user.email);
       setRoleId(user.role.id);
-      setPhone(user.phone ?? '');
-      setCpf(user.cpf ?? '');
+      setPhone(formatPhone(user.phone ?? ''));
+      setCpf(formatCPF(user.cpf ?? ''));
       setAddress(user.address ?? '');
       setDescription(user.description ?? '');
       setPassword('');
@@ -85,30 +86,47 @@ export function UserDialog({ open, onClose, onSuccess, roles, user }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{user ? 'Editar usuário' : 'Novo usuário'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Nome <span className="text-destructive">*</span></Label>
               <Input required value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="space-y-1">
               <Label>Email <span className="text-destructive">*</span></Label>
-              <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="nome@exemplo.com"
+              />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Telefone <span className="text-destructive">*</span></Label>
-              <Input required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" />
+              <Input
+                required
+                value={phone}
+                onChange={(e) => setPhone(formatPhone(e.target.value))}
+                placeholder="(11) 99999-9999"
+                inputMode="numeric"
+              />
             </div>
             <div className="space-y-1">
               <Label>CPF</Label>
-              <Input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" />
+              <Input
+                value={cpf}
+                onChange={(e) => setCpf(formatCPF(e.target.value))}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+              />
             </div>
           </div>
 

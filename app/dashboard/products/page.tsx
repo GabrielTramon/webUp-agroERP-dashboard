@@ -67,8 +67,8 @@ export default function ProductsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-y-2 mb-4">
+        <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold mr-2">Produtos</h1>
           {(["produtos", "categorias"] as const).map((tab) => (
             <button
@@ -145,8 +145,8 @@ function ProductsTab({
         />
       </div>
 
-      <div className="rounded-xl border overflow-hidden">
-        <Table>
+      <div className="rounded-xl border overflow-x-auto">
+        <Table className="min-w-215">
           <TableHeader>
             <TableRow>
               <TableHead>Imagem</TableHead>
