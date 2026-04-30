@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
+import { formatPhone, formatCPF } from '@/lib/utils';
 
 type Client = {
   id: string; name: string; cpf: string | null; phone: string | null;
@@ -34,8 +35,8 @@ export function ClientDialog({ open, onClose, onSuccess, client }: Props) {
   useEffect(() => {
     if (client) {
       setName(client.name);
-      setPhone(client.phone ?? '');
-      setCpf(client.cpf ?? '');
+      setPhone(formatPhone(client.phone ?? ''));
+      setCpf(formatCPF(client.cpf ?? ''));
       setEmail(client.email ?? '');
       setAddress(client.address ?? '');
       setActive(client.active);
@@ -78,24 +79,40 @@ export function ClientDialog({ open, onClose, onSuccess, client }: Props) {
           <DialogTitle>{client ? 'Editar cliente' : 'Novo cliente'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1 col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1 sm:col-span-2">
               <Label>Nome <span className="text-destructive">*</span></Label>
               <Input required value={name} onChange={(e) => setName(e.target.value)} />
             </div>
 
             <div className="space-y-1">
               <Label>Telefone <span className="text-destructive">*</span></Label>
-              <Input required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" />
+              <Input
+                required
+                value={phone}
+                onChange={(e) => setPhone(formatPhone(e.target.value))}
+                placeholder="(11) 99999-9999"
+                inputMode="numeric"
+              />
             </div>
             <div className="space-y-1">
               <Label>CPF</Label>
-              <Input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" />
+              <Input
+                value={cpf}
+                onChange={(e) => setCpf(formatCPF(e.target.value))}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+              />
             </div>
 
             <div className="space-y-1">
               <Label>Email</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Opcional" />
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Opcional"
+              />
             </div>
             <div className="space-y-1">
               <Label>Status</Label>

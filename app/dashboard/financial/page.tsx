@@ -223,12 +223,13 @@ function OverviewTab() {
               <KpiCard icon={CreditCard} label="Débito"   value={fmt(summary.byPaymentMethod.DEBIT)}       color="text-indigo-600" />
               <KpiCard icon={CreditCard} label="Cartão"   value={fmt(summary.byPaymentMethod.CREDIT_CARD)} color="text-purple-600" />
             </div>
+
           </div>
 
           {(summary.movements.totalEntries > 0 || summary.movements.totalExits > 0) && (
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Movimentações manuais</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <KpiCard icon={ArrowUpCircle}   label="Entradas"   value={fmt(summary.movements.totalEntries)} color="text-green-600" />
                 <KpiCard icon={ArrowDownCircle} label="Saídas"     value={fmt(summary.movements.totalExits)}   color="text-destructive" />
                 <KpiCard icon={Wallet}          label="Saldo mov." value={fmt(summary.movements.net)}
@@ -502,8 +503,8 @@ function MovementsTab() {
           Nenhuma movimentação encontrada.
         </p>
       ) : (
-        <div className="rounded-xl border overflow-hidden">
-          <Table>
+        <div className="rounded-xl border overflow-x-auto">
+          <Table className="min-w-160">
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
@@ -977,7 +978,7 @@ function ProductsTab() {
       </div>
 
       {rows.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <KpiCard icon={ShoppingCart} label="Total vendido (qtd)" value={`${totQty} un`} />
           <KpiCard icon={TrendingUp}   label="Receita total" value={fmt(totRevenue)} />
           <KpiCard icon={BarChart2}    label="Lucro total"   value={fmt(totProfit)}
@@ -993,8 +994,8 @@ function ProductsTab() {
           Nenhum produto vendido no período.
         </p>
       ) : (
-        <div className="rounded-xl border overflow-hidden">
-          <Table>
+        <div className="rounded-xl border overflow-x-auto">
+          <Table className="min-w-150">
             <TableHeader>
               <TableRow>
                 <TableHead>Produto</TableHead>
@@ -1078,7 +1079,7 @@ function SellersTab() {
       </div>
 
       {rows.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <KpiCard icon={ShoppingCart} label="Total de vendas" value={`${totSales} venda${totSales !== 1 ? 's' : ''}`} />
           <KpiCard icon={TrendingUp}   label="Receita total"   value={fmt(totRevenue)} />
           <KpiCard icon={BarChart2}    label="Lucro total"     value={fmt(totProfit)}
@@ -1094,8 +1095,8 @@ function SellersTab() {
           Nenhuma venda no período.
         </p>
       ) : (
-        <div className="rounded-xl border overflow-hidden">
-          <Table>
+        <div className="rounded-xl border overflow-x-auto">
+          <Table className="min-w-125">
             <TableHeader>
               <TableRow>
                 <TableHead>Vendedor</TableHead>
