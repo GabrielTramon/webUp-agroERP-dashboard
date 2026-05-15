@@ -1,14 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Users, Plus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import { PageHeader } from '@/components/page-header';
+import { DataPagination } from '@/components/data-pagination';
+import { useDebounce } from '@/hooks/use-debounce';
+import { normalizePaged } from '@/lib/paginate';
 import { UserDialog } from './user-dialog';
 
 type Role = { id: string; name: string };
@@ -18,55 +22,104 @@ type User = {
   active: boolean; role: Role; createdAt: string;
 };
 
+const LIMIT = 20;
+
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [open, setOpen]   = useState(false);
-  const [editing, setEditing] = useState<User | null>(null);
-  const [search, setSearch] = useState('');
+  const [users, setUsers]         = useState<User[]>([]);
+  const [roles, setRoles]         = useState<Role[]>([]);
+  const [total, setTotal]         = useState(0);
+  const [page, setPage]           = useState(1);
+  const [search, setSearch]       = useState('');
+  const [selectedRoleId, setSelectedRoleId] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isOpen, setIsOpen]       = useState(false);
+  const [editing, setEditing]     = useState<User | null>(null);
 
-  const filtered = search.trim()
-    ? users.filter((u) =>
-        u.name.toLowerCase().includes(search.toLowerCase()) ||
-        u.email.toLowerCase().includes(search.toLowerCase()) ||
-        u.phone?.includes(search) ||
-        u.cpf?.includes(search),
-      )
-    : users;
+  const debouncedSearch = useDebounce(search, 400);
 
-  async function load() {
-    const [u, r] = await Promise.all([
-      api.get<User[]>('/users'),
-      api.get<Role[]>('/roles'),
-    ]);
-    setUsers(u);
-    setRoles(r.filter((r) => r.name !== 'ADMIN'));
+  async function loadRoles() {
+    const result = await api.get<Role[]>('/roles');
+    setRoles(result.filter((r) => r.name !== 'ADMIN'));
   }
 
-  useEffect(() => { load(); }, []);
+  async function load(searchTerm: string, targetPage: number, roleId: string) {
+    setIsLoading(true);
+    const params = new URLSearchParams({ page: String(targetPage), limit: String(LIMIT) });
+    if (searchTerm) params.set('search', searchTerm);
+    if (roleId) params.set('roleId', roleId);
+    try {
+      const { items, total } = normalizePaged(
+        await api.get<{ items: User[]; total: number } | User[]>(`/users?${params}`),
+      );
+      setUsers(items);
+      setTotal(total);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => { loadRoles(); }, []);
+  useEffect(() => { setPage(1); }, [debouncedSearch, selectedRoleId]);
+  useEffect(() => { load(debouncedSearch, page, selectedRoleId); }, [debouncedSearch, page, selectedRoleId]);
+
+  function handleOpenCreate() {
+    setEditing(null);
+    setIsOpen(true);
+  }
+
+  function handleOpenEdit(user: User) {
+    setEditing(user);
+    setIsOpen(true);
+  }
 
   async function handleDeactivate(id: string) {
     if (!confirm('Desativar este usuário?')) return;
     await api.delete(`/users/${id}`);
-    load();
+    load(debouncedSearch, page, selectedRoleId);
   }
+
+  function handleSuccess() {
+    setIsOpen(false);
+    load(debouncedSearch, page, selectedRoleId);
+  }
+
+  const filterContent = roles.length > 0 ? (
+    <div className="space-y-2">
+      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        Perfil de acesso
+      </Label>
+      <select
+        value={selectedRoleId}
+        onChange={(e) => setSelectedRoleId(e.target.value)}
+        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+      >
+        <option value="">Todos os perfis</option>
+        {roles.map((role) => (
+          <option key={role.id} value={role.id}>{role.name}</option>
+        ))}
+      </select>
+    </div>
+  ) : undefined;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Usuários</h1>
-        <Button onClick={() => { setEditing(null); setOpen(true); }}>Novo usuário</Button>
-      </div>
-
-      <div className="relative mb-4 max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Pesquisar por nome, email, telefone ou CPF..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
-      </div>
+      <PageHeader
+        icon={Users}
+        title="Usuários"
+        description="Gerencie os usuários da empresa"
+        actions={
+          <Button onClick={handleOpenCreate}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            Novo usuário
+          </Button>
+        }
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Pesquisar por nome, email, telefone ou CPF..."
+        filterContent={filterContent}
+        isFilterActive={!!selectedRoleId}
+        onClearFilters={() => setSelectedRoleId('')}
+      />
 
       <Table>
         <TableHeader>
@@ -81,27 +134,38 @@ export default function UsersPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum usuário encontrado.</TableCell></TableRow>
+          {isLoading && (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                Carregando...
+              </TableCell>
+            </TableRow>
           )}
-          {filtered.map((u) => (
-            <TableRow key={u.id}>
-              <TableCell className="font-medium">{u.name}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
-              <TableCell>{u.phone ?? '—'}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">{u.cpf ?? '—'}</TableCell>
-              <TableCell><Badge variant="outline">{u.role.name}</Badge></TableCell>
+          {!isLoading && users.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                Nenhum usuário encontrado.
+              </TableCell>
+            </TableRow>
+          )}
+          {!isLoading && users.map((user) => (
+            <TableRow key={user.id}>
+              <TableCell className="font-medium">{user.name}</TableCell>
+              <TableCell className="text-muted-foreground text-sm">{user.email}</TableCell>
+              <TableCell>{user.phone ?? '—'}</TableCell>
+              <TableCell className="text-muted-foreground text-sm">{user.cpf ?? '—'}</TableCell>
+              <TableCell><Badge variant="outline">{user.role.name}</Badge></TableCell>
               <TableCell>
-                <Badge variant={u.active ? 'default' : 'secondary'}>
-                  {u.active ? 'Ativo' : 'Inativo'}
+                <Badge variant={user.active ? 'default' : 'secondary'}>
+                  {user.active ? 'Ativo' : 'Inativo'}
                 </Badge>
               </TableCell>
               <TableCell className="text-right space-x-2">
-                <Button size="sm" variant="outline" onClick={() => { setEditing(u); setOpen(true); }}>
+                <Button size="sm" variant="outline" onClick={() => handleOpenEdit(user)}>
                   Editar
                 </Button>
-                {u.active && (
-                  <Button size="sm" variant="destructive" onClick={() => handleDeactivate(u.id)}>
+                {user.active && (
+                  <Button size="sm" variant="destructive" onClick={() => handleDeactivate(user.id)}>
                     Desativar
                   </Button>
                 )}
@@ -111,10 +175,12 @@ export default function UsersPage() {
         </TableBody>
       </Table>
 
+      <DataPagination page={page} total={total} limit={LIMIT} onPageChange={setPage} isLoading={isLoading} />
+
       <UserDialog
-        open={open}
-        onClose={() => setOpen(false)}
-        onSuccess={() => { setOpen(false); load(); }}
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+        onSuccess={handleSuccess}
         roles={roles}
         user={editing}
       />

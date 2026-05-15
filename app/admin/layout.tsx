@@ -9,8 +9,9 @@ import { logout } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { title: 'Empresas', href: '/admin/companies', icon: Building2 },
-  { title: 'Usuários', href: '/admin/users', icon: Users },
+  { title: 'Início',   href: '/admin',           icon: LayoutGrid, exact: true  },
+  { title: 'Empresas', href: '/admin/companies', icon: Building2,  exact: false },
+  { title: 'Usuários', href: '/admin/users',     icon: Users,      exact: false },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -46,7 +47,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               href={item.href}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent',
-                pathname.startsWith(item.href) && 'bg-primary text-primary-foreground hover:bg-primary/90',
+                (item.exact ? pathname === item.href : pathname.startsWith(item.href)) && 'bg-primary text-primary-foreground hover:bg-primary/90',
               )}
             >
               <item.icon className="h-4 w-4 shrink-0" />

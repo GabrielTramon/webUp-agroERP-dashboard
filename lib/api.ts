@@ -16,10 +16,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      window.location.replace('/login');
+      throw new Error('Unauthorized');
+    }
     const error = await res.json().catch(() => ({}));
     throw new Error(error.message ?? `HTTP ${res.status}`);
   }
-  return res.json() as Promise<T>;
+  const text = await res.text();
+  return (text ? JSON.parse(text) : null) as T;
 }
 
 export const api = {

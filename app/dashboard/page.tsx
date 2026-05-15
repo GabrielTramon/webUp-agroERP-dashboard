@@ -50,8 +50,14 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const payload = getPayload();
-  if (payload?.isSuperAdmin) return <SuperAdminHome />;
+  const [isSuperAdmin, setIsSuperAdmin] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setIsSuperAdmin(!!getPayload()?.isSuperAdmin);
+  }, []);
+
+  if (isSuperAdmin === null) return null;
+  if (isSuperAdmin) return <SuperAdminHome />;
   return <UserDashboard />;
 }
 
@@ -60,7 +66,7 @@ export default function DashboardPage() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function SuperAdminHome() {
-  const payload = getPayload();
+  const [adminName, setAdminName] = useState('Admin');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading]     = useState(true);
   const [createOpen, setCreateOpen]   = useState(false);
@@ -73,7 +79,11 @@ function SuperAdminHome() {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const p = getPayload();
+    setAdminName(p?.name ? getFirstName(p.name) : 'Admin');
+    load();
+  }, []);
 
   const totalUsers   = companies.reduce((a, c) => a + c._count.users, 0);
   const totalClients = companies.reduce((a, c) => a + c._count.clients, 0);
@@ -95,7 +105,7 @@ function SuperAdminHome() {
             </Badge>
             <p className="text-slate-400 text-sm font-medium mb-1">{getGreeting()},</p>
             <h1 className="text-3xl font-extrabold text-white tracking-tight">
-              {payload?.name ? getFirstName(payload.name) : 'Admin'} 👋
+              {adminName} 👋
             </h1>
             <p className="mt-2 text-slate-400 text-sm max-w-sm">
               Painel global — gerencie todas as empresas do sistema.
@@ -453,13 +463,21 @@ const quickLinks = [
 ];
 
 function UserDashboard() {
-  const payload   = getPayload();
-  const greeting  = getGreeting();
-  const firstName = payload?.name ? getFirstName(payload.name) : '';
+  const [greeting, setGreeting]     = useState('');
+  const [firstName, setFirstName]   = useState('');
+  const [companyLabel, setCompanyLabel] = useState('');
+  const [stats, setStats]           = useState<Stats>({ users: 0, clients: 0, roles: 0 });
+  const [overdue, setOverdue]       = useState<OverdueEntry[]>([]);
+  const [loading, setLoading]       = useState(true);
 
-  const [stats, setStats]     = useState<Stats>({ users: 0, clients: 0, roles: 0 });
-  const [overdue, setOverdue] = useState<OverdueEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const p = getPayload();
+    setFirstName(p?.name ? getFirstName(p.name) : '');
+    setGreeting(getGreeting());
+    setCompanyLabel(
+      p?.companyName ?? (p?.role === 'ADMIN' ? 'Acesso completo ao sistema' : `Perfil: ${p?.role ?? ''}`),
+    );
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -497,7 +515,7 @@ function UserDashboard() {
               {firstName || 'Usuário'} 👋
             </h1>
             <p className="mt-2 text-blue-100 text-sm">
-              {payload?.companyName ?? (payload?.role === 'ADMIN' ? 'Acesso completo ao sistema' : `Perfil: ${payload?.role ?? ''}`)}
+              {companyLabel}
             </p>
           </div>
           <div className="hidden sm:flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30">
