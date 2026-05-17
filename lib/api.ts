@@ -18,7 +18,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     if (res.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('token');
-      window.location.replace('/login');
+      window.location.replace('/webup/agroerp/login');
       throw new Error('Unauthorized');
     }
     const error = await res.json().catch(() => ({}));

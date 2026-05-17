@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { login } from '@/lib/api';
-import { hasPermission, isSuperAdminUser } from '@/lib/auth';
+import { getPayload, hasPermission, isSuperAdminUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,7 +32,12 @@ export default function LoginPage() {
         setError('Seu perfil não tem acesso ao painel.');
         return;
       }
-      router.push('/dashboard');
+      const slug = getPayload()?.companySlug;
+      if (!slug) {
+        setError('Empresa não encontrada no token. Contate o suporte.');
+        return;
+      }
+      router.push(`/dashboard/${slug}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro inesperado');
     } finally {

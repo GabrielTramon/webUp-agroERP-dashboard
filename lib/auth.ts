@@ -5,6 +5,7 @@ export type TokenPayload = {
   role?: string;
   companyId?: string;
   companyName?: string;
+  companySlug?: string;
   isSuperAdmin: boolean;
   permissions: string[];
 };
