@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import {
   Users, UserCircle, Shield, TrendingUp, AlertTriangle,
   Building2, Plus, Pencil, ShoppingBasket, Landmark, BarChart2,
@@ -453,16 +454,21 @@ const statCards = [
   { key: 'roles',   label: 'Perfis de acesso',  icon: Shield,     color: 'text-violet-600',  bg: 'bg-violet-100 dark:bg-violet-950'     },
 ] as const;
 
-const quickLinks = [
-  { href: '/dashboard/users',         icon: Users,         title: 'Usuários',     desc: 'Criar e gerenciar usuários',       color: '#2563eb' },
-  { href: '/dashboard/clients',       icon: UserCircle,    title: 'Clientes',     desc: 'Cadastrar e consultar clientes',   color: '#059669' },
-  { href: '/dashboard/products',      icon: ShoppingBasket,title: 'Produtos',     desc: 'Estoque, preços e categorias',     color: '#d97706' },
-  { href: '/dashboard/sales',         icon: TrendingUp,    title: 'Vendas / PDV', desc: 'Registrar e consultar vendas',     color: '#7c3aed' },
-  { href: '/dashboard/cash-register', icon: Landmark,      title: 'Caixa',        desc: 'Abrir, fechar e finalizar vendas', color: '#0891b2' },
-  { href: '/dashboard/financial',     icon: BarChart2,     title: 'Financeiro',   desc: 'Relatórios e movimentações',       color: '#be185d' },
-];
+function buildQuickLinks(company: string) {
+  return [
+    { href: `/dashboard/${company}/users`,         icon: Users,         title: 'Usuários',     desc: 'Criar e gerenciar usuários',       color: '#2563eb' },
+    { href: `/dashboard/${company}/clients`,       icon: UserCircle,    title: 'Clientes',     desc: 'Cadastrar e consultar clientes',   color: '#059669' },
+    { href: `/dashboard/${company}/products`,      icon: ShoppingBasket,title: 'Produtos',     desc: 'Estoque, preços e categorias',     color: '#d97706' },
+    { href: `/dashboard/${company}/sales`,         icon: TrendingUp,    title: 'Vendas / PDV', desc: 'Registrar e consultar vendas',     color: '#7c3aed' },
+    { href: `/dashboard/${company}/cash-register`, icon: Landmark,      title: 'Caixa',        desc: 'Abrir, fechar e finalizar vendas', color: '#0891b2' },
+    { href: `/dashboard/${company}/financial`,     icon: BarChart2,     title: 'Financeiro',   desc: 'Relatórios e movimentações',       color: '#be185d' },
+  ];
+}
 
 function UserDashboard() {
+  const { company } = useParams<{ company: string }>();
+  const quickLinks = buildQuickLinks(company);
+
   const [greeting, setGreeting]     = useState('');
   const [firstName, setFirstName]   = useState('');
   const [companyLabel, setCompanyLabel] = useState('');

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import {
   Users, UserCircle, Shield, KeyRound, LayoutDashboard,
   ShoppingBasket, TrendingUp, Landmark, BarChart2, LogOut, Moon, Sun,
@@ -12,34 +12,43 @@ import { logout } from "@/lib/api";
 import { getPayload, hasPermission, type TokenPayload } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
-const allItems = [
-  { title: "Dashboard",   href: "/dashboard",               icon: LayoutDashboard, permission: "dashboard:acessar"   },
-  { title: "Usuários",    href: "/dashboard/users",          icon: Users,           permission: "usuarios:visualizar" },
-  { title: "Clientes",    href: "/dashboard/clients",        icon: UserCircle,      permission: "clientes:visualizar" },
-  { title: "Produtos",    href: "/dashboard/products",       icon: ShoppingBasket,  permission: "produtos:visualizar" },
-  { title: "Vendas",      href: "/dashboard/sales",          icon: TrendingUp,      permission: "vendas:visualizar"   },
-  { title: "Caixa",       href: "/dashboard/cash-register",  icon: Landmark,        permission: "caixa:visualizar"    },
-  { title: "Financeiro",  href: "/dashboard/financial",      icon: BarChart2,       permission: "financeiro:visualizar"},
-  { title: "Perfis",      href: "/dashboard/roles",          icon: Shield,          permission: "perfis:visualizar"   },
-  { title: "Permissões",  href: "/dashboard/permissions",    icon: KeyRound,        permission: "perfis:visualizar"   },
+const navDefinitions = [
+  { title: "Dashboard",   slug: "",               icon: LayoutDashboard, permission: "dashboard:acessar"    },
+  { title: "Usuários",    slug: "/users",          icon: Users,           permission: "usuarios:visualizar"  },
+  { title: "Clientes",    slug: "/clients",        icon: UserCircle,      permission: "clientes:visualizar"  },
+  { title: "Produtos",    slug: "/products",       icon: ShoppingBasket,  permission: "produtos:visualizar"  },
+  { title: "Vendas",      slug: "/sales",          icon: TrendingUp,      permission: "vendas:visualizar"    },
+  { title: "Caixa",       slug: "/cash-register",  icon: Landmark,        permission: "caixa:visualizar"     },
+  { title: "Financeiro",  slug: "/financial",      icon: BarChart2,       permission: "financeiro:visualizar" },
+  { title: "Perfis",      slug: "/roles",          icon: Shield,          permission: "perfis:visualizar"    },
+  { title: "Permissões",  slug: "/permissions",    icon: KeyRound,        permission: "perfis:visualizar"    },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
   const router   = useRouter();
+  const params   = useParams<{ company?: string }>();
+  const company  = params.company ?? '';
+
+  type NavItem = (typeof navDefinitions)[0] & { href: string };
+
   const [payload, setPayload] = useState<TokenPayload | null>(null);
-  const [visible, setVisible] = useState<typeof allItems>([]);
+  const [visible, setVisible] = useState<NavItem[]>([]);
   const [isDark, setIsDark]   = useState(false);
 
   useEffect(() => {
     const p = getPayload();
     setPayload(p);
-    setVisible(allItems.filter((item) => hasPermission(item.permission)));
+    setVisible(
+      navDefinitions
+        .filter((item) => hasPermission(item.permission))
+        .map((item) => ({ ...item, href: `/dashboard/${company}${item.slug}` })),
+    );
 
     const saved = localStorage.getItem("theme") === "dark";
     setIsDark(saved);
     document.documentElement.classList.toggle("dark", saved);
-  }, []);
+  }, [company]);
 
   function toggleDark() {
     const next = !isDark;

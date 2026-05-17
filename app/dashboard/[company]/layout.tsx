@@ -1,18 +1,25 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { AppSidebar } from '@/components/app-sidebar';
-import { getStoredToken, hasPermission } from '@/lib/auth';
+import { getPayload, getStoredToken, hasPermission } from '@/lib/auth';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const params = useParams();
+  const company = params.company as string;
 
   useEffect(() => {
     if (!getStoredToken() || !hasPermission('dashboard:acessar')) {
       router.replace('/login');
+      return;
     }
-  }, [router]);
+    const payload = getPayload();
+    if (payload?.companySlug && payload.companySlug !== company) {
+      router.replace(`/dashboard/${payload.companySlug}`);
+    }
+  }, [router, company]);
 
   return (
     <div className="flex min-h-screen">
