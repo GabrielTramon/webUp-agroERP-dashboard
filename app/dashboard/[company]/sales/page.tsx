@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,6 +77,7 @@ export default function SalesPage() {
 // ─── PDV Tab ──────────────────────────────────────────────────────────────────
 
 function PdvTab() {
+  const { company } = useParams<{ company: string }>();
   const [products, setProducts]         = useState<Product[]>([]);
   const [cart, setCart]                 = useState<CartItem[]>([]);
   const [search, setSearch]             = useState('');
@@ -178,7 +180,7 @@ function PdvTab() {
             Nenhum caixa aberto. Abra o caixa para realizar vendas.
           </span>
           <Link
-            href="/dashboard/cash-register"
+            href={`/dashboard/${company}/cash-register`}
             className="shrink-0 text-xs font-semibold text-amber-700 dark:text-amber-400 underline-offset-2 hover:underline"
           >
             Abrir caixa →
