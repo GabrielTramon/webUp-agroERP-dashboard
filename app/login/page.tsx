@@ -5,8 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { login } from '@/lib/api';
+<<<<<<< HEAD
 import { useAuth } from '@/lib/auth-context';
 import { hasPermission } from '@/lib/auth';
+=======
+import { getPayload, hasPermission, isSuperAdminUser } from '@/lib/auth';
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,7 +43,16 @@ function LoginForm() {
         setError('Seu perfil não tem acesso ao painel.');
         return;
       }
+<<<<<<< HEAD
       router.push(redirectTo ?? '/dashboard');
+=======
+      const slug = getPayload()?.companySlug;
+      if (!slug) {
+        setError('Empresa não encontrada no token. Contate o suporte.');
+        return;
+      }
+      router.push(`/dashboard/${slug}`);
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro inesperado');
     } finally {

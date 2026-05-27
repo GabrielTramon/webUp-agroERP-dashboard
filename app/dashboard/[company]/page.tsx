@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+<<<<<<< HEAD:app/dashboard/page.tsx
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+=======
+import { useParams } from 'next/navigation';
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a:app/dashboard/[company]/page.tsx
 import {
   Users, UserCircle, Shield, TrendingUp, AlertTriangle,
   Building2, Plus, Pencil, ShoppingBasket, Landmark, BarChart2,
@@ -39,8 +43,19 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+<<<<<<< HEAD:app/dashboard/page.tsx
   const { user } = useAuth();
   if (user?.isSuperAdmin) return <SuperAdminHome />;
+=======
+  const [isSuperAdmin, setIsSuperAdmin] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setIsSuperAdmin(!!getPayload()?.isSuperAdmin);
+  }, []);
+
+  if (isSuperAdmin === null) return null;
+  if (isSuperAdmin) return <SuperAdminHome />;
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a:app/dashboard/[company]/page.tsx
   return <UserDashboard />;
 }
 
@@ -49,9 +64,15 @@ export default function DashboardPage() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function SuperAdminHome() {
+<<<<<<< HEAD:app/dashboard/page.tsx
   const { user: payload } = useAuth();
   const qc = useQueryClient();
   const { data: companies = [], isLoading: loading, isFetching, refetch } = useAdminCompanies();
+=======
+  const [adminName, setAdminName] = useState('Admin');
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading]     = useState(true);
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a:app/dashboard/[company]/page.tsx
   const [createOpen, setCreateOpen]   = useState(false);
   const [editCompany, setEditCompany] = useState<Company | null>(null);
   const [userTarget, setUserTarget]   = useState<Company | null>(null);
@@ -60,6 +81,15 @@ function SuperAdminHome() {
     qc.invalidateQueries({ queryKey: qk.adminCompanies });
   }
 
+<<<<<<< HEAD:app/dashboard/page.tsx
+=======
+  useEffect(() => {
+    const p = getPayload();
+    setAdminName(p?.name ? getFirstName(p.name) : 'Admin');
+    load();
+  }, []);
+
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a:app/dashboard/[company]/page.tsx
   const totalUsers   = companies.reduce((a, c) => a + c._count.users, 0);
   const totalClients = companies.reduce((a, c) => a + c._count.clients, 0);
   const totalSales   = companies.reduce((a, c) => a + c._count.sales, 0);
@@ -80,7 +110,7 @@ function SuperAdminHome() {
             </Badge>
             <p className="text-slate-400 text-sm font-medium mb-1">{getGreeting()},</p>
             <h1 className="text-3xl font-extrabold text-white tracking-tight">
-              {payload?.name ? getFirstName(payload.name) : 'Admin'} 👋
+              {adminName} 👋
             </h1>
             <p className="mt-2 text-slate-400 text-sm max-w-sm">
               Painel global — gerencie todas as empresas do sistema.
@@ -428,16 +458,19 @@ const statCards = [
   { key: 'roles',   label: 'Perfis de acesso',  icon: Shield,     color: 'text-violet-600',  bg: 'bg-violet-100 dark:bg-violet-950'     },
 ] as const;
 
-const quickLinks = [
-  { href: '/dashboard/users',         icon: Users,         title: 'Usuários',     desc: 'Criar e gerenciar usuários',       color: '#2563eb' },
-  { href: '/dashboard/clients',       icon: UserCircle,    title: 'Clientes',     desc: 'Cadastrar e consultar clientes',   color: '#059669' },
-  { href: '/dashboard/products',      icon: ShoppingBasket,title: 'Produtos',     desc: 'Estoque, preços e categorias',     color: '#d97706' },
-  { href: '/dashboard/sales',         icon: TrendingUp,    title: 'Vendas / PDV', desc: 'Registrar e consultar vendas',     color: '#7c3aed' },
-  { href: '/dashboard/cash-register', icon: Landmark,      title: 'Caixa',        desc: 'Abrir, fechar e finalizar vendas', color: '#0891b2' },
-  { href: '/dashboard/financial',     icon: BarChart2,     title: 'Financeiro',   desc: 'Relatórios e movimentações',       color: '#be185d' },
-];
+function buildQuickLinks(company: string) {
+  return [
+    { href: `/dashboard/${company}/users`,         icon: Users,         title: 'Usuários',     desc: 'Criar e gerenciar usuários',       color: '#2563eb' },
+    { href: `/dashboard/${company}/clients`,       icon: UserCircle,    title: 'Clientes',     desc: 'Cadastrar e consultar clientes',   color: '#059669' },
+    { href: `/dashboard/${company}/products`,      icon: ShoppingBasket,title: 'Produtos',     desc: 'Estoque, preços e categorias',     color: '#d97706' },
+    { href: `/dashboard/${company}/sales`,         icon: TrendingUp,    title: 'Vendas / PDV', desc: 'Registrar e consultar vendas',     color: '#7c3aed' },
+    { href: `/dashboard/${company}/cash-register`, icon: Landmark,      title: 'Caixa',        desc: 'Abrir, fechar e finalizar vendas', color: '#0891b2' },
+    { href: `/dashboard/${company}/financial`,     icon: BarChart2,     title: 'Financeiro',   desc: 'Relatórios e movimentações',       color: '#be185d' },
+  ];
+}
 
 function UserDashboard() {
+<<<<<<< HEAD:app/dashboard/page.tsx
   const { user: payload } = useAuth();
   const greeting  = getGreeting();
   const firstName = payload?.name ? getFirstName(payload.name) : '';
@@ -449,6 +482,44 @@ function UserDashboard() {
   });
   const rolesQ = useRoles();
   const overdueQ = useOverdueClients();
+=======
+  const { company } = useParams<{ company: string }>();
+  const quickLinks = buildQuickLinks(company);
+
+  const [greeting, setGreeting]     = useState('');
+  const [firstName, setFirstName]   = useState('');
+  const [companyLabel, setCompanyLabel] = useState('');
+  const [stats, setStats]           = useState<Stats>({ users: 0, clients: 0, roles: 0 });
+  const [overdue, setOverdue]       = useState<OverdueEntry[]>([]);
+  const [loading, setLoading]       = useState(true);
+
+  useEffect(() => {
+    const p = getPayload();
+    setFirstName(p?.name ? getFirstName(p.name) : '');
+    setGreeting(getGreeting());
+    setCompanyLabel(
+      p?.companyName ?? (p?.role === 'ADMIN' ? 'Acesso completo ao sistema' : `Perfil: ${p?.role ?? ''}`),
+    );
+  }, []);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [users, clients, roles, overdueData] = await Promise.all([
+          api.get<unknown[]>('/users'),
+          api.get<unknown[]>('/clients'),
+          api.get<unknown[]>('/roles'),
+          api.get<OverdueEntry[]>('/clients/overdue').catch(() => []),
+        ]);
+        setStats({ users: users.length, clients: clients.length, roles: roles.length });
+        setOverdue(overdueData);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a:app/dashboard/[company]/page.tsx
 
   const loading = usersQ.isLoading || clientsQ.isLoading || rolesQ.isLoading || overdueQ.isLoading;
   const stats = {
@@ -475,7 +546,7 @@ function UserDashboard() {
               {firstName || 'Usuário'} 👋
             </h1>
             <p className="mt-2 text-blue-100 text-sm">
-              {payload?.companyName ?? (payload?.role === 'ADMIN' ? 'Acesso completo ao sistema' : `Perfil: ${payload?.role ?? ''}`)}
+              {companyLabel}
             </p>
           </div>
           <div className="hidden sm:flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30">

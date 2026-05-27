@@ -17,14 +17,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      window.location.replace('/webup/agroerp/login');
+      throw new Error('Unauthorized');
+    }
     const error = await res.json().catch(() => ({}));
     throw new Error(error.message ?? `HTTP ${res.status}`);
   }
+<<<<<<< HEAD
 
   if (res.status === 204) return null as T;
   const text = await res.text();
   if (!text) return null as T;
   return JSON.parse(text) as T;
+=======
+  const text = await res.text();
+  return (text ? JSON.parse(text) : null) as T;
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a
 }
 
 export const api = {

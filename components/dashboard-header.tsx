@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+<<<<<<< HEAD
 import { getInitials } from '@/lib/utils';
 
 interface Props {
@@ -12,6 +13,10 @@ interface Props {
 }
 
 export function DashboardHeader({ userName, userSubtitle }: Props) {
+=======
+
+export function DashboardHeader() {
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -29,6 +34,7 @@ export function DashboardHeader({ userName, userSubtitle }: Props) {
 
   return (
     <header className="flex h-14 items-center justify-between border-b px-4">
+<<<<<<< HEAD
       <div className="flex items-center gap-1">
         <SidebarTrigger />
         <Button variant="ghost" size="icon" onClick={toggleDark}>
@@ -49,6 +55,12 @@ export function DashboardHeader({ userName, userSubtitle }: Props) {
           </div>
         </div>
       )}
+=======
+      <SidebarTrigger />
+      <Button variant="ghost" size="icon" onClick={toggleDark}>
+        {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </Button>
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a
     </header>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,9 +16,14 @@ import {
 } from '@/components/ui/dialog';
 import {
   Search, Trash2, Plus, Minus, ShoppingCart,
+<<<<<<< HEAD:app/dashboard/sales/page.tsx
   History, RefreshCw, Pencil, X, Clock, Banknote,
   Info, ArrowLeft, Tag, Package, ImageOff,
+=======
+  History, RefreshCw, Pencil, X, Clock, Banknote, AlertTriangle,
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a:app/dashboard/[company]/sales/page.tsx
 } from 'lucide-react';
+import Link from 'next/link';
 import { SearchSelect } from '@/components/ui/search-select';
 import { cn } from '@/lib/utils';
 
@@ -130,6 +136,7 @@ export default function SalesPage() {
 // ─── PDV Tab ──────────────────────────────────────────────────────────────────
 
 function PdvTab() {
+  const { company } = useParams<{ company: string }>();
   const [products, setProducts]         = useState<Product[]>([]);
   const [categories, setCategories]     = useState<Category[]>([]);
   const [view, setView]                 = useState<CategoryView>({ type: 'categories' });
@@ -139,13 +146,18 @@ function PdvTab() {
   const [loadingProds, setLoadingProds] = useState(true);
   const [finalizeOpen, setFinalizeOpen] = useState(false);
   const [mobileView, setMobileView]     = useState<'products' | 'cart'>('products');
+<<<<<<< HEAD:app/dashboard/sales/page.tsx
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+=======
+  const [isCashOpen, setIsCashOpen]     = useState<boolean | null>(null);
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a:app/dashboard/[company]/sales/page.tsx
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setLoadingProds(true);
     Promise.all([
       api.get<Product[]>('/products'),
+<<<<<<< HEAD:app/dashboard/sales/page.tsx
       api.get<Category[]>('/products/categories').catch(() => [] as Category[]),
     ])
       .then(([prods, cats]) => {
@@ -154,6 +166,15 @@ function PdvTab() {
         if (cats.length === 0) setView({ type: 'all' });
       })
       .catch(() => {})
+=======
+      api.get<{ status: string } | null>('/cash-register/current'),
+    ])
+      .then(([prods, reg]) => {
+        setProducts(prods.filter((p) => p.active !== false));
+        setIsCashOpen(reg?.status === 'OPEN');
+      })
+      .catch(() => setIsCashOpen(false))
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a:app/dashboard/[company]/sales/page.tsx
       .finally(() => setLoadingProds(false));
   }, []);
 
@@ -242,6 +263,21 @@ function PdvTab() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-190px)] min-h-[500px] overflow-hidden">
+
+      {isCashOpen === false && (
+        <div className="shrink-0 mb-2 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-4 py-2.5 text-sm">
+          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+          <span className="text-amber-700 dark:text-amber-400 font-medium flex-1">
+            Nenhum caixa aberto. Abra o caixa para realizar vendas.
+          </span>
+          <Link
+            href={`/dashboard/${company}/cash-register`}
+            className="shrink-0 text-xs font-semibold text-amber-700 dark:text-amber-400 underline-offset-2 hover:underline"
+          >
+            Abrir caixa →
+          </Link>
+        </div>
+      )}
 
       {/* ── Top bar: busca ── */}
       <div className="shrink-0 pb-2">
@@ -554,7 +590,7 @@ function PdvTab() {
               <Button
                 className="w-full h-10 text-sm font-bold tracking-wide"
                 onClick={() => setFinalizeOpen(true)}
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || !isCashOpen}
               >
                 FINALIZAR VENDA
               </Button>
@@ -592,7 +628,7 @@ function PdvTab() {
               <Button
                 className="h-11 px-8 text-sm font-bold tracking-wide shrink-0"
                 onClick={() => setFinalizeOpen(true)}
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || !isCashOpen}
               >
                 FINALIZAR VENDA
               </Button>

@@ -1,53 +1,103 @@
 'use client';
 
+<<<<<<< HEAD
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Search, Plus } from 'lucide-react';
+=======
+import { useEffect, useState } from 'react';
+import { Building2, Plus } from 'lucide-react';
+import { api } from '@/lib/api';
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import { PageHeader } from '@/components/page-header';
+import { DataPagination } from '@/components/data-pagination';
+import { useDebounce } from '@/hooks/use-debounce';
+import { normalizePaged } from '@/lib/paginate';
 import { CompanyDialog } from './company-dialog';
 import { useAdminCompanies, qk, type Company } from '@/lib/queries';
 
+const LIMIT = 20;
+
 export default function AdminCompaniesPage() {
+<<<<<<< HEAD
   const qc = useQueryClient();
   const { data: companies = [] } = useAdminCompanies();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Company | null>(null);
   const [search, setSearch] = useState('');
+=======
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [total, setTotal]         = useState(0);
+  const [page, setPage]           = useState(1);
+  const [search, setSearch]       = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isOpen, setIsOpen]       = useState(false);
+  const [editing, setEditing]     = useState<Company | null>(null);
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a
 
-  const filtered = search.trim()
-    ? companies.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()) || c.slug.includes(search.toLowerCase()))
-    : companies;
+  const debouncedSearch = useDebounce(search, 400);
 
+<<<<<<< HEAD
   function refresh() {
     qc.invalidateQueries({ queryKey: qk.adminCompanies });
   }
 
+=======
+  async function load(searchTerm: string, targetPage: number) {
+    setIsLoading(true);
+    const params = new URLSearchParams({ page: String(targetPage), limit: String(LIMIT) });
+    if (searchTerm) params.set('search', searchTerm);
+    try {
+      const { items, total } = normalizePaged(
+        await api.get<{ items: Company[]; total: number } | Company[]>(`/admin/companies?${params}`),
+      );
+      setCompanies(items);
+      setTotal(total);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => { setPage(1); }, [debouncedSearch]);
+  useEffect(() => { load(debouncedSearch, page); }, [debouncedSearch, page]);
+
+  function handleOpenCreate() {
+    setEditing(null);
+    setIsOpen(true);
+  }
+
+  function handleOpenEdit(company: Company) {
+    setEditing(company);
+    setIsOpen(true);
+  }
+
+  function handleSuccess() {
+    setIsOpen(false);
+    load(debouncedSearch, page);
+  }
+
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Empresas</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{companies.length} empresa(s) cadastrada(s)</p>
-        </div>
-        <Button onClick={() => { setEditing(null); setOpen(true); }}>
-          <Plus className="h-4 w-4 mr-2" />Nova empresa
-        </Button>
-      </div>
-
-      <div className="relative mb-4 max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Pesquisar por nome ou slug..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
-      </div>
+      <PageHeader
+        icon={Building2}
+        title="Empresas"
+        description="Gerencie as empresas do sistema"
+        actions={
+          <Button onClick={handleOpenCreate}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            Nova empresa
+          </Button>
+        }
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Pesquisar por nome ou slug..."
+      />
 
       <div className="rounded-lg border bg-background">
         <Table>
@@ -63,27 +113,34 @@ export default function AdminCompaniesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 && (
+            {isLoading && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  Carregando...
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && companies.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   Nenhuma empresa encontrada.
                 </TableCell>
               </TableRow>
             )}
-            {filtered.map((c) => (
-              <TableRow key={c.id}>
-                <TableCell className="font-medium">{c.name}</TableCell>
+            {!isLoading && companies.map((company) => (
+              <TableRow key={company.id}>
+                <TableCell className="font-medium">{company.name}</TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="font-mono text-xs">{c.slug}</Badge>
+                  <Badge variant="outline" className="font-mono text-xs">{company.slug}</Badge>
                 </TableCell>
-                <TableCell>{c._count.users}</TableCell>
-                <TableCell>{c._count.clients}</TableCell>
-                <TableCell>{c._count.sales}</TableCell>
+                <TableCell>{company._count.users}</TableCell>
+                <TableCell>{company._count.clients}</TableCell>
+                <TableCell>{company._count.sales}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">
-                  {new Date(c.createdAt).toLocaleDateString('pt-BR')}
+                  {new Date(company.createdAt).toLocaleDateString('pt-BR')}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button size="sm" variant="outline" onClick={() => { setEditing(c); setOpen(true); }}>
+                  <Button size="sm" variant="outline" onClick={() => handleOpenEdit(company)}>
                     Editar
                   </Button>
                 </TableCell>
@@ -93,10 +150,18 @@ export default function AdminCompaniesPage() {
         </Table>
       </div>
 
+      <DataPagination page={page} total={total} limit={LIMIT} onPageChange={setPage} isLoading={isLoading} />
+
       <CompanyDialog
+<<<<<<< HEAD
         open={open}
         onClose={() => setOpen(false)}
         onSuccess={() => { setOpen(false); refresh(); }}
+=======
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+        onSuccess={handleSuccess}
+>>>>>>> 141133b1b4128fa53cc79e887335ab94e09bb68a
         company={editing}
       />
     </div>
