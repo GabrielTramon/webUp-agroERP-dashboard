@@ -20,6 +20,12 @@ import { cn } from "@/lib/utils";
 const fmt = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+const fmtQty = (v: number) => {
+  if (!Number.isFinite(v)) return '0';
+  if (Number.isInteger(v)) return String(v);
+  return v.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+};
+
 type Category = { id: string; name: string; description: string | null; _count?: { products: number } };
 
 function activeDiscount(p: Product): number | null {
@@ -230,7 +236,7 @@ function ProductsTab({
                       <span className="text-xs text-muted-foreground italic">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{p.stock}</TableCell>
+                  <TableCell className="text-right tabular-nums">{fmtQty(p.stock)}</TableCell>
                   <TableCell>
                     <Badge variant={p.active ? "default" : "secondary"}>
                       {p.active ? "Ativo" : "Inativo"}

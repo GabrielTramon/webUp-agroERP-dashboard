@@ -31,6 +31,11 @@ type Sale = {
 };
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtQty = (v: number) => {
+  if (!Number.isFinite(v)) return '0';
+  if (Number.isInteger(v)) return String(v);
+  return v.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+};
 const PM_LABELS: Record<string, string> = {
   CASH: 'Dinheiro', DEBIT: 'Débito', CREDIT_CARD: 'Cartão', CREDIT: 'A Prazo',
 };
@@ -286,7 +291,7 @@ function CreditModal({
                     <div className="space-y-0.5">
                       {s.items.map((item) => (
                         <div key={item.id} className="flex justify-between text-xs text-muted-foreground">
-                          <span>{item.product.name} × {item.quantity}</span>
+                          <span>{item.product.name} × {fmtQty(item.quantity)}</span>
                           <span className="tabular-nums">{fmt(item.price * item.quantity)}</span>
                         </div>
                       ))}
@@ -361,7 +366,7 @@ function HistoryModal({
                 <Separator />
                 {s.items.map((item) => (
                   <div key={item.id} className="flex justify-between text-sm">
-                    <span>{item.product.name} × {item.quantity}</span>
+                    <span>{item.product.name} × {fmtQty(item.quantity)}</span>
                     <span className="text-muted-foreground tabular-nums">{fmt(item.price * item.quantity)}</span>
                   </div>
                 ))}

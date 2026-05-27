@@ -1,25 +1,30 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL;
+import type { TokenPayload } from './auth';
 
-function getToken() {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('token');
-}
+const BASE = '/api/proxy';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   });
+
+  if (res.status === 401 && typeof window !== 'undefined') {
+    window.location.href = '/login';
+    throw new Error('Sessão expirada');
+  }
+
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
     throw new Error(error.message ?? `HTTP ${res.status}`);
   }
-  return res.json() as Promise<T>;
+
+  if (res.status === 204) return null as T;
+  const text = await res.text();
+  if (!text) return null as T;
+  return JSON.parse(text) as T;
 }
 
 export const api = {
@@ -34,11 +39,26 @@ export const api = {
 };
 
 export async function login(payload: { email: string; password: string }) {
-  const data = await api.post<{ access_token: string }>('/auth/login', payload);
-  localStorage.setItem('token', data.access_token);
-  return data;
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message ?? `HTTP ${res.status}`);
+  }
+  return (await res.json()) as { user: TokenPayload };
 }
 
-export function logout() {
-  localStorage.removeItem('token');
+export async function logout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+}
+
+export function forgotPassword(email: string) {
+  return api.post<{ message: string }>('/auth/forgot-password', { email });
+}
+
+export function resetPassword(token: string, newPassword: string) {
+  return api.post<{ message: string }>('/auth/reset-password', { token, newPassword });
 }

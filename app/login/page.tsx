@@ -1,17 +1,21 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import { login } from '@/lib/api';
-import { hasPermission, isSuperAdminUser } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
+import { hasPermission } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { setUser } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,16 +27,19 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login({ email, password });
-      if (isSuperAdminUser()) {
-        router.push('/admin');
+      const { user } = await login({ email, password });
+      setUser(user);
+
+      const redirectTo = searchParams.get('redirect');
+      if (user.isSuperAdmin) {
+        router.push(redirectTo ?? '/admin');
         return;
       }
-      if (!hasPermission('dashboard:acessar')) {
+      if (!hasPermission(user, 'dashboard:acessar')) {
         setError('Seu perfil não tem acesso ao painel.');
         return;
       }
-      router.push('/dashboard');
+      router.push(redirectTo ?? '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro inesperado');
     } finally {
@@ -112,9 +119,17 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-                Senha
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                  Senha
+                </Label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs font-medium text-[#0057E7] hover:underline"
+                >
+                  Esqueci a senha
+                </Link>
+              </div>
               <div className="relative">
                 <Input
                   id="password"
@@ -157,5 +172,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

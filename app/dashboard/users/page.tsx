@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Search } from 'lucide-react';
-import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -10,20 +9,20 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { UserDialog } from './user-dialog';
-
-type Role = { id: string; name: string };
-type User = {
-  id: string; name: string; email: string; cpf: string | null;
-  phone: string | null; address: string | null; description: string | null;
-  active: boolean; role: Role; createdAt: string;
-};
+import {
+  useDashboardUsers, useRoles, useDeactivateDashboardUser,
+  type DashboardUser,
+} from '@/lib/queries';
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
+  const { data: users = [], refetch } = useDashboardUsers();
+  const { data: allRoles = [] } = useRoles();
+  const deactivate = useDeactivateDashboardUser();
   const [open, setOpen]   = useState(false);
-  const [editing, setEditing] = useState<User | null>(null);
+  const [editing, setEditing] = useState<DashboardUser | null>(null);
   const [search, setSearch] = useState('');
+
+  const roles = allRoles.filter((r) => r.name !== 'ADMIN');
 
   const filtered = search.trim()
     ? users.filter((u) =>
@@ -34,21 +33,9 @@ export default function UsersPage() {
       )
     : users;
 
-  async function load() {
-    const [u, r] = await Promise.all([
-      api.get<User[]>('/users'),
-      api.get<Role[]>('/roles'),
-    ]);
-    setUsers(u);
-    setRoles(r.filter((r) => r.name !== 'ADMIN'));
-  }
-
-  useEffect(() => { load(); }, []);
-
   async function handleDeactivate(id: string) {
     if (!confirm('Desativar este usuário?')) return;
-    await api.delete(`/users/${id}`);
-    load();
+    await deactivate.mutateAsync(id);
   }
 
   return (
@@ -101,7 +88,7 @@ export default function UsersPage() {
                   Editar
                 </Button>
                 {u.active && (
-                  <Button size="sm" variant="destructive" onClick={() => handleDeactivate(u.id)}>
+                  <Button size="sm" variant="destructive" onClick={() => handleDeactivate(u.id)} disabled={deactivate.isPending}>
                     Desativar
                   </Button>
                 )}
@@ -114,7 +101,7 @@ export default function UsersPage() {
       <UserDialog
         open={open}
         onClose={() => setOpen(false)}
-        onSuccess={() => { setOpen(false); load(); }}
+        onSuccess={() => { setOpen(false); refetch(); }}
         roles={roles}
         user={editing}
       />

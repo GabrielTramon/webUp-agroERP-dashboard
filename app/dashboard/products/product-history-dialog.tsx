@@ -17,6 +17,11 @@ import { RefreshCw, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const fmt    = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtQty = (v: number) => {
+  if (!Number.isFinite(v)) return '0';
+  if (Number.isInteger(v)) return String(v);
+  return v.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+};
 const fmtDt  = (s: string) => new Date(s).toLocaleString('pt-BR', {
   day: '2-digit', month: '2-digit', year: '2-digit',
   hour: '2-digit', minute: '2-digit',
@@ -219,7 +224,7 @@ export function ProductHistoryDialog({ product, onClose }: Props) {
                 <>
                   <div className="grid grid-cols-4 gap-3 mb-4">
                     {[
-                      { label: 'Qtd vendida',   value: `${totalSalesQty} un` },
+                      { label: 'Qtd vendida',   value: `${fmtQty(totalSalesQty)} un` },
                       { label: 'Receita total',  value: fmt(totalRevenue) },
                       { label: 'Custo total',    value: fmt(totalCost) },
                       { label: 'Lucro total',    value: fmt(totalProfit),
@@ -267,7 +272,7 @@ export function ProductHistoryDialog({ product, onClose }: Props) {
                           <TableCell className="text-muted-foreground">
                             {item.sale.client?.name ?? '—'}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
+                          <TableCell className="text-right tabular-nums">{fmtQty(item.quantity)}</TableCell>
                           <TableCell className="text-right tabular-nums">{fmt(item.price)}</TableCell>
                           <TableCell className="text-right tabular-nums text-muted-foreground">
                             {item.costPrice != null ? fmt(item.costPrice) : '—'}

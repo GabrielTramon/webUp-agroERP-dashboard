@@ -90,7 +90,9 @@ export function UserDialog({ open, onClose, onSuccess, roles, user }: Props) {
         <DialogHeader>
           <DialogTitle>{user ? 'Editar usuário' : 'Novo usuário'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-3" autoComplete="off">
+          <input type="text" name="prevent-autofill" className="hidden" autoComplete="off" tabIndex={-1} aria-hidden="true" />
+          <input type="password" name="prevent-autofill-pw" className="hidden" autoComplete="new-password" tabIndex={-1} aria-hidden="true" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Nome <span className="text-destructive">*</span></Label>
@@ -104,6 +106,8 @@ export function UserDialog({ open, onClose, onSuccess, roles, user }: Props) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="nome@exemplo.com"
+                autoComplete="off"
+                name="new-user-email"
               />
             </div>
           </div>
@@ -133,7 +137,14 @@ export function UserDialog({ open, onClose, onSuccess, roles, user }: Props) {
           {!user && (
             <div className="space-y-1">
               <Label>Senha <span className="text-destructive">*</span></Label>
-              <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                name="new-user-password"
+              />
             </div>
           )}
 

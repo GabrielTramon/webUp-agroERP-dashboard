@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Search, Plus } from 'lucide-react';
-import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -10,19 +10,11 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { CompanyDialog } from './company-dialog';
-
-type Company = {
-  id: string;
-  name: string;
-  slug: string;
-  logoUrl: string | null;
-  primaryColor: string | null;
-  createdAt: string;
-  _count: { users: number; clients: number; sales: number };
-};
+import { useAdminCompanies, qk, type Company } from '@/lib/queries';
 
 export default function AdminCompaniesPage() {
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const qc = useQueryClient();
+  const { data: companies = [] } = useAdminCompanies();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Company | null>(null);
   const [search, setSearch] = useState('');
@@ -31,11 +23,9 @@ export default function AdminCompaniesPage() {
     ? companies.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()) || c.slug.includes(search.toLowerCase()))
     : companies;
 
-  async function load() {
-    setCompanies(await api.get<Company[]>('/admin/companies'));
+  function refresh() {
+    qc.invalidateQueries({ queryKey: qk.adminCompanies });
   }
-
-  useEffect(() => { load(); }, []);
 
   return (
     <div>
@@ -106,7 +96,7 @@ export default function AdminCompaniesPage() {
       <CompanyDialog
         open={open}
         onClose={() => setOpen(false)}
-        onSuccess={() => { setOpen(false); load(); }}
+        onSuccess={() => { setOpen(false); refresh(); }}
         company={editing}
       />
     </div>

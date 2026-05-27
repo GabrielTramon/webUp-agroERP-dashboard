@@ -1,13 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Users, UserCircle, Shield, TrendingUp, AlertTriangle,
   Building2, Plus, Pencil, ShoppingBasket, Landmark, BarChart2,
   RefreshCw, UserPlus, ArrowRight,
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { getPayload } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
+import {
+  useAdminCompanies, useDashboardUsers, useRoles, useOverdueClients,
+  qk, type Company,
+} from '@/lib/queries';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,22 +22,6 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { formatPhone } from '@/lib/utils';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type Company = {
-  id: string; name: string; slug: string;
-  logoUrl: string | null; primaryColor: string | null; createdAt: string;
-  _count: { users: number; clients: number; sales: number };
-};
-
-type Stats = { users: number; clients: number; roles: number };
-
-type OverdueEntry = {
-  client: { id: string; name: string; phone: string | null; email: string | null };
-  total: number;
-  sales: { id: string; total: number; dueDate: string | null }[];
-};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,8 +39,8 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const payload = getPayload();
-  if (payload?.isSuperAdmin) return <SuperAdminHome />;
+  const { user } = useAuth();
+  if (user?.isSuperAdmin) return <SuperAdminHome />;
   return <UserDashboard />;
 }
 
@@ -60,20 +49,16 @@ export default function DashboardPage() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function SuperAdminHome() {
-  const payload = getPayload();
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading, setLoading]     = useState(true);
+  const { user: payload } = useAuth();
+  const qc = useQueryClient();
+  const { data: companies = [], isLoading: loading, isFetching, refetch } = useAdminCompanies();
   const [createOpen, setCreateOpen]   = useState(false);
   const [editCompany, setEditCompany] = useState<Company | null>(null);
   const [userTarget, setUserTarget]   = useState<Company | null>(null);
 
-  async function load() {
-    setLoading(true);
-    try { setCompanies(await api.get<Company[]>('/admin/companies')); }
-    finally { setLoading(false); }
+  function invalidateCompanies() {
+    qc.invalidateQueries({ queryKey: qk.adminCompanies });
   }
-
-  useEffect(() => { load(); }, []);
 
   const totalUsers   = companies.reduce((a, c) => a + c._count.users, 0);
   const totalClients = companies.reduce((a, c) => a + c._count.clients, 0);
@@ -143,8 +128,8 @@ function SuperAdminHome() {
             Empresas cadastradas
           </p>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={load} disabled={loading}>
-              <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+            <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
+              <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} />
             </Button>
             <Button size="sm" onClick={() => setCreateOpen(true)}>
               <Plus className="h-3.5 w-3.5 mr-1.5" />
@@ -185,19 +170,19 @@ function SuperAdminHome() {
         open={createOpen}
         company={null}
         onClose={() => setCreateOpen(false)}
-        onSuccess={() => { setCreateOpen(false); load(); }}
+        onSuccess={() => { setCreateOpen(false); invalidateCompanies(); }}
       />
       <CompanyModal
         open={!!editCompany}
         company={editCompany}
         onClose={() => setEditCompany(null)}
-        onSuccess={() => { setEditCompany(null); load(); }}
+        onSuccess={() => { setEditCompany(null); invalidateCompanies(); }}
       />
       <CreateAdminUserModal
         open={!!userTarget}
         company={userTarget}
         onClose={() => setUserTarget(null)}
-        onSuccess={() => { setUserTarget(null); load(); }}
+        onSuccess={() => { setUserTarget(null); invalidateCompanies(); }}
       />
     </div>
   );
@@ -453,32 +438,25 @@ const quickLinks = [
 ];
 
 function UserDashboard() {
-  const payload   = getPayload();
+  const { user: payload } = useAuth();
   const greeting  = getGreeting();
   const firstName = payload?.name ? getFirstName(payload.name) : '';
 
-  const [stats, setStats]     = useState<Stats>({ users: 0, clients: 0, roles: 0 });
-  const [overdue, setOverdue] = useState<OverdueEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const usersQ = useDashboardUsers();
+  const clientsQ = useQuery({
+    queryKey: ['clients'],
+    queryFn: () => api.get<unknown[]>('/clients'),
+  });
+  const rolesQ = useRoles();
+  const overdueQ = useOverdueClients();
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [users, clients, roles, overdueData] = await Promise.all([
-          api.get<unknown[]>('/users'),
-          api.get<unknown[]>('/clients'),
-          api.get<unknown[]>('/roles'),
-          api.get<OverdueEntry[]>('/clients/overdue').catch(() => []),
-        ]);
-        setStats({ users: users.length, clients: clients.length, roles: roles.length });
-        setOverdue(overdueData);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
-
+  const loading = usersQ.isLoading || clientsQ.isLoading || rolesQ.isLoading || overdueQ.isLoading;
+  const stats = {
+    users: usersQ.data?.length ?? 0,
+    clients: clientsQ.data?.length ?? 0,
+    roles: rolesQ.data?.length ?? 0,
+  };
+  const overdue = overdueQ.data ?? [];
   const overdueTotal = overdue.reduce((a, e) => a + e.total, 0);
 
   return (
@@ -531,58 +509,52 @@ function UserDashboard() {
       </div>
 
       {/* ── Overdue ── */}
-      {(overdue.length > 0 || loading) && (
+      {!loading && overdue.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="h-4 w-4 text-destructive" />
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
               Contas em atraso
             </p>
-            {!loading && (
-              <span className="ml-auto text-sm font-semibold text-destructive">
-                Total: {fmt(overdueTotal)}
-              </span>
-            )}
+            <span className="ml-auto text-sm font-semibold text-destructive">
+              Total: {fmt(overdueTotal)}
+            </span>
           </div>
 
-          {loading ? (
-            <div className="rounded-2xl border bg-card h-24 animate-pulse" />
-          ) : (
-            <div className="rounded-2xl border overflow-x-auto">
-              <table className="w-full text-sm min-w-125">
-                <thead className="border-b bg-destructive/5">
-                  <tr>
-                    <th className="px-5 py-3 text-left font-medium text-muted-foreground">Cliente</th>
-                    <th className="px-5 py-3 text-left font-medium text-muted-foreground">Contato</th>
-                    <th className="px-5 py-3 text-center font-medium text-muted-foreground">Vendas</th>
-                    <th className="px-5 py-3 text-right font-medium text-muted-foreground">Total em aberto</th>
+          <div className="rounded-2xl border overflow-x-auto">
+            <table className="w-full text-sm min-w-125">
+              <thead className="border-b bg-destructive/5">
+                <tr>
+                  <th className="px-5 py-3 text-left font-medium text-muted-foreground">Cliente</th>
+                  <th className="px-5 py-3 text-left font-medium text-muted-foreground">Contato</th>
+                  <th className="px-5 py-3 text-center font-medium text-muted-foreground">Vendas</th>
+                  <th className="px-5 py-3 text-right font-medium text-muted-foreground">Total em aberto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overdue.map((entry) => (
+                  <tr key={entry.client.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                    <td className="px-5 py-3 font-medium">{entry.client.name}</td>
+                    <td className="px-5 py-3 text-muted-foreground">
+                      {entry.client.phone ?? entry.client.email ?? '—'}
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                      <Badge variant="destructive">{entry.sales.length}</Badge>
+                    </td>
+                    <td className="px-5 py-3 text-right font-semibold text-destructive">
+                      {fmt(entry.total)}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {overdue.map((entry) => (
-                    <tr key={entry.client.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                      <td className="px-5 py-3 font-medium">{entry.client.name}</td>
-                      <td className="px-5 py-3 text-muted-foreground">
-                        {entry.client.phone ?? entry.client.email ?? '—'}
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <Badge variant="destructive">{entry.sales.length}</Badge>
-                      </td>
-                      <td className="px-5 py-3 text-right font-semibold text-destructive">
-                        {fmt(entry.total)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-muted/30 font-bold">
-                    <td className="px-5 py-3 text-muted-foreground" colSpan={3}>Total em atraso</td>
-                    <td className="px-5 py-3 text-right text-destructive">{fmt(overdueTotal)}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          )}
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-muted/30 font-bold">
+                  <td className="px-5 py-3 text-muted-foreground" colSpan={3}>Total em atraso</td>
+                  <td className="px-5 py-3 text-right text-destructive">{fmt(overdueTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
       )}
 

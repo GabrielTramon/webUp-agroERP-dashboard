@@ -16,12 +16,26 @@ import {
 import {
   Search, Trash2, Plus, Minus, ShoppingCart,
   History, RefreshCw, Pencil, X, Clock, Banknote,
+  Info, ArrowLeft, Tag, Package, ImageOff,
 } from 'lucide-react';
 import { SearchSelect } from '@/components/ui/search-select';
 import { cn } from '@/lib/utils';
 
 type ActiveDiscount = { percent: number; discountedPrice: number };
-type Product  = { id: string; name: string; price: number; stock: number; imageUrl: string | null; active?: boolean; barcode?: string | null; activeDiscount?: ActiveDiscount | null };
+type Product  = {
+  id: string; name: string; price: number; stock: number;
+  imageUrl: string | null; active?: boolean; barcode?: string | null;
+  description?: string | null;
+  costPrice?: number | null;
+  categoryId?: string | null;
+  category?: { id: string; name: string } | null;
+  activeDiscount?: ActiveDiscount | null;
+};
+type Category = { id: string; name: string; description?: string | null; _count?: { products: number } };
+type CategoryView =
+  | { type: 'categories' }
+  | { type: 'all' }
+  | { type: 'category'; id: string; name: string };
 type Seller   = { id: string; name: string };
 type CartItem = { productId: string; name: string; price: number; originalPrice: number; discountPct: number | null; quantity: number; stock: number };
 type SaleItem = { id: string; quantity: number; price: number; subtotal: number; product: { id: string; name: string } };
@@ -37,6 +51,47 @@ type Client = { id: string; name: string };
 
 const MAX_DISCOUNT = 5;
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtQty = (v: number) => {
+  if (!Number.isFinite(v)) return '0';
+  if (Number.isInteger(v)) return String(v);
+  return v.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+};
+const parseQty = (raw: string): number => {
+  const cleaned = raw.replace(',', '.').trim();
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? 0 : n;
+};
+
+function QtyInput({
+  quantity, onChange, className,
+}: {
+  quantity: number;
+  onChange: (raw: string) => void;
+  className?: string;
+}) {
+  const [draft, setDraft] = useState(() => fmtQty(quantity));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setDraft(fmtQty(quantity));
+  }, [quantity, focused]);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={draft}
+      onChange={(e) => { setDraft(e.target.value); onChange(e.target.value); }}
+      onFocus={() => setFocused(true)}
+      onBlur={() => { setFocused(false); setDraft(fmtQty(quantity)); }}
+      onClick={(e) => (e.target as HTMLInputElement).select()}
+      className={cn(
+        'w-full h-7 text-center rounded-md border border-input bg-transparent text-sm font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-ring',
+        className,
+      )}
+    />
+  );
+}
 const PAYMENT_LABELS: Record<string, string> = {
   CASH: 'Dinheiro', DEBIT: 'Débito', CREDIT_CARD: 'Cartão', CREDIT: 'A Prazo',
 };
@@ -76,28 +131,49 @@ export default function SalesPage() {
 
 function PdvTab() {
   const [products, setProducts]         = useState<Product[]>([]);
+  const [categories, setCategories]     = useState<Category[]>([]);
+  const [view, setView]                 = useState<CategoryView>({ type: 'categories' });
   const [cart, setCart]                 = useState<CartItem[]>([]);
   const [search, setSearch]             = useState('');
   const [discount, setDiscount]         = useState('');
   const [loadingProds, setLoadingProds] = useState(true);
   const [finalizeOpen, setFinalizeOpen] = useState(false);
   const [mobileView, setMobileView]     = useState<'products' | 'cart'>('products');
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setLoadingProds(true);
-    api.get<Product[]>('/products')
-      .then((prods) => setProducts(prods.filter((p) => p.active !== false)))
+    Promise.all([
+      api.get<Product[]>('/products'),
+      api.get<Category[]>('/products/categories').catch(() => [] as Category[]),
+    ])
+      .then(([prods, cats]) => {
+        setProducts(prods.filter((p) => p.active !== false));
+        setCategories(cats);
+        if (cats.length === 0) setView({ type: 'all' });
+      })
       .catch(() => {})
       .finally(() => setLoadingProds(false));
   }, []);
 
-  const filtered = search.trim()
-    ? products.filter((p) =>
+  const isSearching = search.trim().length > 0;
+  const showCategories = !isSearching && view.type === 'categories' && categories.length > 0;
+
+  const scopedProducts = (() => {
+    if (showCategories) return [];
+    if (view.type === 'category') {
+      return products.filter((p) => p.categoryId === view.id);
+    }
+    return products;
+  })();
+
+  const filtered = isSearching
+    ? scopedProducts.filter((p) =>
         p.name.toLowerCase().includes(search.toLowerCase()) ||
         (p.barcode && p.barcode.toLowerCase().includes(search.toLowerCase()))
       )
-    : products;
+    : scopedProducts;
 
   function addToCart(product: Product) {
     if (product.stock === 0) return;
@@ -121,8 +197,12 @@ function PdvTab() {
   }
 
   function setQty(productId: string, raw: string) {
-    const qty = parseInt(raw);
-    if (!raw || isNaN(qty) || qty < 1) {
+    if (!raw.trim()) {
+      setCart((prev) => prev.filter((i) => i.productId !== productId));
+      return;
+    }
+    const qty = parseQty(raw);
+    if (qty <= 0) {
       setCart((prev) => prev.filter((i) => i.productId !== productId));
       return;
     }
@@ -198,7 +278,7 @@ function PdvTab() {
               : 'hover:bg-muted border-input',
           )}
         >
-          Produtos ({filtered.length})
+          {showCategories ? `Categorias (${categories.length})` : `Produtos (${filtered.length})`}
         </button>
         <button
           onClick={() => setMobileView('cart')}
@@ -216,88 +296,173 @@ function PdvTab() {
       {/* ── Main: produtos + carrinho ── */}
       <div className="flex flex-1 min-h-0 overflow-hidden rounded-xl border">
 
-        {/* Left: lista de produtos */}
+        {/* Left: lista de produtos / categorias */}
         <div className={cn(
           'flex flex-col overflow-hidden',
           'lg:w-[44%] lg:border-r',
           mobileView === 'products' ? 'flex-1 border-r-0' : 'hidden lg:flex',
         )}>
-          <div className="shrink-0 grid grid-cols-[1fr_80px_28px] lg:grid-cols-[1fr_80px_60px_28px] gap-x-3 px-3 py-2 bg-muted/40 border-b">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Produto</span>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Preço</span>
-            <span className="hidden lg:block text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Est.</span>
-            <span />
-          </div>
+          {/* Header: breadcrumb / categoria atual */}
+          {!showCategories && categories.length > 0 && (
+            <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-muted/40 border-b">
+              <button
+                onClick={() => { setView({ type: 'categories' }); setSearch(''); }}
+                className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                title="Voltar às categorias"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Categorias
+              </button>
+              <span className="text-muted-foreground/40">/</span>
+              <span className="text-xs font-semibold truncate">
+                {view.type === 'category' ? view.name : 'Todos os Produtos'}
+              </span>
+            </div>
+          )}
 
-          <div className="flex-1 overflow-y-auto">
-            {loadingProds ? (
-              <div className="p-3 space-y-1.5">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <div key={i} className="h-9 bg-muted animate-pulse rounded-lg" />
-                ))}
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-                {search ? `Sem resultados para "${search}"` : 'Nenhum produto'}
-              </div>
-            ) : (
-              filtered.map((p) => {
-                const inCart = cart.find((i) => i.productId === p.id);
-                const out = p.stock === 0;
-                return (
-                  <div
-                    key={p.id}
-                    onClick={() => { if (!out) { addToCart(p); if (window.innerWidth < 1024) setMobileView('cart'); } }}
-                    className={cn(
-                      'grid grid-cols-[1fr_80px_28px] lg:grid-cols-[1fr_80px_60px_28px] gap-x-3 px-3 py-2.5 text-sm border-b last:border-0 transition-colors',
-                      !out && 'cursor-pointer hover:bg-accent',
-                      inCart && !out && 'bg-primary/5 hover:bg-primary/10',
-                      out && 'opacity-40 cursor-default',
-                    )}
-                  >
-                    <span className="font-medium truncate flex items-center gap-1.5">
-                      {p.name}
-                      {inCart && (
-                        <Badge variant="secondary" className="h-4 px-1.5 text-[10px] shrink-0">
-                          {inCart.quantity}
-                        </Badge>
-                      )}
-                      {p.activeDiscount && (
-                        <Badge variant="secondary" className="h-4 px-1.5 text-[10px] shrink-0 text-emerald-700 bg-emerald-100">
-                          -{p.activeDiscount.percent}%
-                        </Badge>
-                      )}
-                    </span>
-                    <span className="text-right tabular-nums">
-                      {p.activeDiscount ? (
-                        <span className="text-emerald-600 font-semibold">{fmt(p.activeDiscount.discountedPrice)}</span>
-                      ) : fmt(p.price)}
-                    </span>
-                    <span className={cn(
-                      'hidden lg:block text-right tabular-nums',
-                      p.stock > 0 && p.stock <= 5 && 'text-amber-600 font-medium',
-                    )}>
-                      {p.stock}
-                    </span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); if (!out) { addToCart(p); if (window.innerWidth < 1024) setMobileView('cart'); } }}
-                      disabled={out}
-                      className="flex items-center justify-center h-5 w-5 rounded text-muted-foreground hover:bg-primary hover:text-primary-foreground disabled:opacity-0 transition-colors"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
+          {showCategories ? (
+            <>
+              <div className="flex-1 overflow-y-auto p-3">
+                {loadingProds ? (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="h-24 bg-muted animate-pulse rounded-xl" />
+                    ))}
                   </div>
-                );
-              })
-            )}
-          </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      onClick={() => setView({ type: 'all' })}
+                      className="group flex flex-col items-start justify-between p-3 rounded-xl border bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-all text-left min-h-22"
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/15 text-primary shrink-0">
+                          <Package className="h-4 w-4" />
+                        </div>
+                        <span className="font-semibold text-sm truncate">Todos os Produtos</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground mt-2">
+                        {products.length} {products.length === 1 ? 'item' : 'itens'}
+                      </span>
+                    </button>
+                    {categories.map((cat) => {
+                      const count = cat._count?.products ?? products.filter((p) => p.categoryId === cat.id).length;
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => setView({ type: 'category', id: cat.id, name: cat.name })}
+                          className="group flex flex-col items-start justify-between p-3 rounded-xl border hover:bg-accent hover:border-primary/40 transition-all text-left min-h-22"
+                        >
+                          <div className="flex items-center gap-2 w-full">
+                            <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-muted-foreground group-hover:bg-primary/15 group-hover:text-primary shrink-0 transition-colors">
+                              <Tag className="h-4 w-4" />
+                            </div>
+                            <span className="font-semibold text-sm truncate">{cat.name}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground mt-2">
+                            {count} {count === 1 ? 'item' : 'itens'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="shrink-0 px-3 py-1.5 border-t bg-muted/20">
+                <span className="text-xs text-muted-foreground">
+                  {categories.length} categoria{categories.length !== 1 ? 's' : ''} · selecione uma para ver os produtos
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="shrink-0 grid grid-cols-[1fr_80px_56px] lg:grid-cols-[1fr_80px_60px_56px] gap-x-3 px-3 py-2 bg-muted/40 border-b">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Produto</span>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Preço</span>
+                <span className="hidden lg:block text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">Est.</span>
+                <span />
+              </div>
 
-          <div className="shrink-0 px-3 py-1.5 border-t bg-muted/20">
-            <span className="text-xs text-muted-foreground">
-              {filtered.length} produto{filtered.length !== 1 ? 's' : ''}
-              {search && ` · ENTER para adicionar`}
-            </span>
-          </div>
+              <div className="flex-1 overflow-y-auto">
+                {loadingProds ? (
+                  <div className="p-3 space-y-1.5">
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <div key={i} className="h-9 bg-muted animate-pulse rounded-lg" />
+                    ))}
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
+                    {search ? `Sem resultados para "${search}"` : 'Nenhum produto'}
+                  </div>
+                ) : (
+                  filtered.map((p) => {
+                    const inCart = cart.find((i) => i.productId === p.id);
+                    const out = p.stock === 0;
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => { if (!out) { addToCart(p); if (window.innerWidth < 1024) setMobileView('cart'); } }}
+                        className={cn(
+                          'grid grid-cols-[1fr_80px_56px] lg:grid-cols-[1fr_80px_60px_56px] gap-x-3 px-3 py-2.5 text-sm border-b last:border-0 transition-colors',
+                          !out && 'cursor-pointer hover:bg-accent',
+                          inCart && !out && 'bg-primary/5 hover:bg-primary/10',
+                          out && 'opacity-40 cursor-default',
+                        )}
+                      >
+                        <span className="font-medium truncate flex items-center gap-1.5">
+                          {p.name}
+                          {inCart && (
+                            <Badge variant="secondary" className="h-4 px-1.5 text-[10px] shrink-0">
+                              {fmtQty(inCart.quantity)}
+                            </Badge>
+                          )}
+                          {p.activeDiscount && (
+                            <Badge variant="secondary" className="h-4 px-1.5 text-[10px] shrink-0 text-emerald-700 bg-emerald-100">
+                              -{p.activeDiscount.percent}%
+                            </Badge>
+                          )}
+                        </span>
+                        <span className="text-right tabular-nums">
+                          {p.activeDiscount ? (
+                            <span className="text-emerald-600 font-semibold">{fmt(p.activeDiscount.discountedPrice)}</span>
+                          ) : fmt(p.price)}
+                        </span>
+                        <span className={cn(
+                          'hidden lg:block text-right tabular-nums',
+                          p.stock > 0 && p.stock <= 5 && 'text-amber-600 font-medium',
+                        )}>
+                          {fmtQty(p.stock)}
+                        </span>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setDetailProduct(p); }}
+                            title="Ver detalhes"
+                            className="flex items-center justify-center h-5 w-5 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                          >
+                            <Info className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); if (!out) { addToCart(p); if (window.innerWidth < 1024) setMobileView('cart'); } }}
+                            disabled={out}
+                            className="flex items-center justify-center h-5 w-5 rounded text-muted-foreground hover:bg-primary hover:text-primary-foreground disabled:opacity-0 transition-colors"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="shrink-0 px-3 py-1.5 border-t bg-muted/20">
+                <span className="text-xs text-muted-foreground">
+                  {filtered.length} produto{filtered.length !== 1 ? 's' : ''}
+                  {search && ` · ENTER para adicionar`}
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Right: carrinho */}
@@ -338,16 +503,9 @@ function PdvTab() {
                       <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1 rounded">-{item.discountPct}%</span>
                     )}
                   </span>
-                  <input
-                    type="number"
-                    min="1"
-                    max={item.stock}
-                    step="1"
-                    value={item.quantity}
-                    onChange={(e) => setQty(item.productId, e.target.value)}
-                    onBlur={(e) => setQty(item.productId, e.target.value)}
-                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                    className="w-full h-7 text-center rounded-md border border-input bg-transparent text-sm font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+                  <QtyInput
+                    quantity={item.quantity}
+                    onChange={(raw) => setQty(item.productId, raw)}
                   />
                   <span className="hidden lg:block text-right tabular-nums text-muted-foreground">{fmt(item.price)}</span>
                   <span className="text-right tabular-nums font-semibold">{fmt(item.price * item.quantity)}</span>
@@ -452,7 +610,122 @@ function PdvTab() {
         discountPct={discountPct}
         cart={cart}
       />
+
+      <ProductDetailsDialog
+        product={detailProduct}
+        onClose={() => setDetailProduct(null)}
+        onAddToCart={(p) => {
+          addToCart(p);
+          setDetailProduct(null);
+          if (window.innerWidth < 1024) setMobileView('cart');
+        }}
+      />
     </div>
+  );
+}
+
+// ─── Product Details Dialog ───────────────────────────────────────────────────
+
+function ProductDetailsDialog({
+  product, onClose, onAddToCart,
+}: {
+  product: Product | null;
+  onClose: () => void;
+  onAddToCart: (p: Product) => void;
+}) {
+  const out = product?.stock === 0;
+  const price = product?.activeDiscount?.discountedPrice ?? product?.price ?? 0;
+
+  return (
+    <Dialog open={!!product} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Detalhes do Produto</DialogTitle>
+        </DialogHeader>
+        {product && (
+          <div className="space-y-4">
+            <div className="aspect-square w-full max-h-64 rounded-xl overflow-hidden border bg-muted/30 flex items-center justify-center">
+              {product.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={product.imageUrl}
+                  alt={product.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                  <ImageOff className="h-10 w-10 opacity-40" />
+                  <span className="text-xs">Sem imagem</span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-lg font-bold leading-tight">{product.name}</h3>
+                {product.activeDiscount && (
+                  <Badge variant="secondary" className="text-emerald-700 bg-emerald-100 shrink-0">
+                    -{product.activeDiscount.percent}%
+                  </Badge>
+                )}
+              </div>
+              {product.category && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Tag className="h-3 w-3" />
+                  {product.category.name}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Preço</p>
+                {product.activeDiscount ? (
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-lg font-bold text-emerald-600 tabular-nums">{fmt(price)}</span>
+                    <span className="text-xs text-muted-foreground line-through tabular-nums">{fmt(product.price)}</span>
+                  </div>
+                ) : (
+                  <span className="text-lg font-bold tabular-nums">{fmt(product.price)}</span>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Estoque</p>
+                <p className={cn(
+                  'text-lg font-bold tabular-nums',
+                  out && 'text-destructive',
+                  !out && product.stock <= 5 && 'text-amber-600',
+                )}>
+                  {fmtQty(product.stock)} {product.stock === 1 ? 'unidade' : 'unidades'}
+                </p>
+              </div>
+              {product.barcode && (
+                <div className="col-span-2">
+                  <p className="text-xs text-muted-foreground mb-0.5">Código de Barras</p>
+                  <p className="font-mono text-sm">{product.barcode}</p>
+                </div>
+              )}
+            </div>
+
+            {product.description && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Descrição</p>
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{product.description}</p>
+              </div>
+            )}
+
+            <Button
+              className="w-full h-11 font-bold tracking-wide"
+              onClick={() => onAddToCart(product)}
+              disabled={out}
+            >
+              <Plus className="h-4 w-4 mr-1.5" />
+              {out ? 'Sem Estoque' : 'Adicionar ao Carrinho'}
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -845,7 +1118,7 @@ function SaleDetailsDialog({
                 {sale.items.map((item) => (
                   <tr key={item.id} className="border-b last:border-0">
                     <td className="py-1.5">{item.product.name}</td>
-                    <td className="py-1.5 text-center tabular-nums">{item.quantity}</td>
+                    <td className="py-1.5 text-center tabular-nums">{fmtQty(item.quantity)}</td>
                     <td className="py-1.5 text-right tabular-nums">{fmt(item.price)}</td>
                     <td className="py-1.5 text-right font-semibold tabular-nums">{fmt(item.subtotal)}</td>
                   </tr>
@@ -954,7 +1227,7 @@ function SaleEditDialog({
                       className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm hover:bg-accent disabled:opacity-40 first:rounded-t-lg last:rounded-b-lg">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{p.name}</p>
-                        <p className="text-xs text-muted-foreground">Estoque: {p.stock}</p>
+                        <p className="text-xs text-muted-foreground">Estoque: {fmtQty(p.stock)}</p>
                       </div>
                       <span className="font-semibold tabular-nums">{fmt(p.price)}</span>
                     </button>
@@ -983,12 +1256,27 @@ function SaleEditDialog({
                         <td className="px-3 py-2">
                           <div className="flex items-center justify-center gap-1">
                             <Button size="icon" variant="outline" className="h-6 w-6"
-                              onClick={() => setCart((p) => p.map((i) => i.productId === item.productId ? { ...i, quantity: i.quantity - 1 } : i).filter((i) => i.quantity > 0))}>
+                              onClick={() => setCart((p) => p.map((i) => i.productId === item.productId ? { ...i, quantity: Math.max(0, i.quantity - 1) } : i).filter((i) => i.quantity > 0))}>
                               <Minus className="h-3 w-3" />
                             </Button>
-                            <span className="w-8 text-center tabular-nums">{item.quantity}</span>
+                            <div className="w-16">
+                              <QtyInput
+                                quantity={item.quantity}
+                                onChange={(raw) => {
+                                  const n = parseQty(raw);
+                                  setCart((p) => {
+                                    if (n <= 0) return p.filter((i) => i.productId !== item.productId);
+                                    return p.map((i) =>
+                                      i.productId === item.productId
+                                        ? { ...i, quantity: Math.min(n, i.stock) }
+                                        : i,
+                                    );
+                                  });
+                                }}
+                              />
+                            </div>
                             <Button size="icon" variant="outline" className="h-6 w-6"
-                              onClick={() => setCart((p) => p.map((i) => i.productId === item.productId ? { ...i, quantity: i.quantity + 1 } : i))}
+                              onClick={() => setCart((p) => p.map((i) => i.productId === item.productId ? { ...i, quantity: Math.min(i.quantity + 1, i.stock) } : i))}
                               disabled={item.quantity >= item.stock}>
                               <Plus className="h-3 w-3" />
                             </Button>

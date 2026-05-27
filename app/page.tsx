@@ -1,19 +1,15 @@
-'use client';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { decodeJwt, isExpired } from '@/lib/jwt';
+import { AUTH_COOKIE } from '@/lib/server-config';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { getStoredToken, isAdmin } from '@/lib/auth';
+export default async function HomePage() {
+  const store = await cookies();
+  const token = store.get(AUTH_COOKIE)?.value;
+  const payload = token ? decodeJwt(token) : null;
+  const valid = payload && !isExpired(payload);
 
-export default function HomePage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    if (getStoredToken() && isAdmin()) {
-      router.replace('/dashboard');
-    } else {
-      router.replace('/login');
-    }
-  }, [router]);
-
-  return null;
+  if (!valid) redirect('/login');
+  if (payload!.isSuperAdmin) redirect('/admin');
+  redirect('/dashboard');
 }

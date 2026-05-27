@@ -87,7 +87,9 @@ export function AdminUserDialog({ open, onClose, onSuccess, user, companies, sel
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-1">
+        <form onSubmit={handleSubmit} className="space-y-4 mt-1" autoComplete="off">
+          <input type="text" name="prevent-autofill" className="hidden" autoComplete="off" tabIndex={-1} aria-hidden="true" />
+          <input type="password" name="prevent-autofill-pw" className="hidden" autoComplete="new-password" tabIndex={-1} aria-hidden="true" />
           <div className="space-y-1.5">
             <Label>Nome *</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} required />
@@ -96,11 +98,25 @@ export function AdminUserDialog({ open, onClose, onSuccess, user, companies, sel
             <>
               <div className="space-y-1.5">
                 <Label>Email *</Label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="off"
+                  name="new-admin-email"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Senha *</Label>
-                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  name="new-admin-password"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Empresa *</Label>

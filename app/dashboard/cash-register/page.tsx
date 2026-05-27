@@ -52,6 +52,42 @@ type CashRegister = {
 };
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtQty = (v: number) => {
+  if (!Number.isFinite(v)) return '0';
+  if (Number.isInteger(v)) return String(v);
+  return v.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+};
+const parseQty = (raw: string): number => {
+  const n = parseFloat(raw.replace(',', '.').trim());
+  return isNaN(n) ? 0 : n;
+};
+
+function QtyInput({
+  quantity, onChange,
+}: {
+  quantity: number;
+  onChange: (raw: string) => void;
+}) {
+  const [draft, setDraft] = useState(() => fmtQty(quantity));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setDraft(fmtQty(quantity));
+  }, [quantity, focused]);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={draft}
+      onChange={(e) => { setDraft(e.target.value); onChange(e.target.value); }}
+      onFocus={() => setFocused(true)}
+      onBlur={() => { setFocused(false); setDraft(fmtQty(quantity)); }}
+      onClick={(e) => (e.target as HTMLInputElement).select()}
+      className="w-14 h-7 text-center rounded-md border border-input bg-transparent text-sm font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+    />
+  );
+}
 const PAYMENT_LABELS: Record<string, string> = {
   CASH: 'Dinheiro', DEBIT: 'Débito', CREDIT_CARD: 'Cartão',
 };
@@ -381,8 +417,28 @@ function FinalizeSaleModal({
 
   function changeQty(productId: string, delta: number) {
     setCart((prev) =>
-      prev.map((i) => i.productId === productId ? { ...i, quantity: i.quantity + delta } : i)
-          .filter((i) => i.quantity > 0),
+      prev.map((i) => {
+        if (i.productId !== productId) return i;
+        const next = i.quantity + delta;
+        return { ...i, quantity: Math.min(Math.max(next, 0), i.stock) };
+      }).filter((i) => i.quantity > 0),
+    );
+  }
+
+  function setQty(productId: string, raw: string) {
+    if (!raw.trim()) {
+      setCart((prev) => prev.filter((i) => i.productId !== productId));
+      return;
+    }
+    const qty = parseQty(raw);
+    if (qty <= 0) {
+      setCart((prev) => prev.filter((i) => i.productId !== productId));
+      return;
+    }
+    setCart((prev) =>
+      prev.map((i) =>
+        i.productId === productId ? { ...i, quantity: Math.min(qty, i.stock) } : i,
+      ),
     );
   }
 
@@ -473,7 +529,7 @@ function FinalizeSaleModal({
                       >
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{p.name}</p>
-                          <p className="text-xs text-muted-foreground">Estoque: {p.stock}</p>
+                          <p className="text-xs text-muted-foreground">Estoque: {fmtQty(p.stock)}</p>
                         </div>
                         <span className="font-semibold shrink-0 text-primary">{fmt(p.price)}</span>
                       </button>
@@ -508,7 +564,10 @@ function FinalizeSaleModal({
                               <Button size="icon" variant="outline" className="h-7 w-7 rounded-full" onClick={() => changeQty(item.productId, -1)}>
                                 <Minus className="h-3 w-3" />
                               </Button>
-                              <span className="w-8 text-center font-semibold">{item.quantity}</span>
+                              <QtyInput
+                                quantity={item.quantity}
+                                onChange={(raw) => setQty(item.productId, raw)}
+                              />
                               <Button size="icon" variant="outline" className="h-7 w-7 rounded-full" onClick={() => changeQty(item.productId, 1)} disabled={item.quantity >= item.stock}>
                                 <Plus className="h-3 w-3" />
                               </Button>

@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Search, Plus } from 'lucide-react';
-import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -10,21 +9,24 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { AdminUserDialog } from './admin-user-dialog';
-
-type Role = { id: string; name: string };
-type Company = { id: string; name: string };
-type AdminUser = {
-  id: string; name: string; email: string; phone: string | null;
-  cpf: string | null; active: boolean; role: Role; company: Company; createdAt: string;
-};
+import { ResetPasswordDialog } from './reset-password-dialog';
+import {
+  useAdminCompanies, useAdminUsers,
+  useDeactivateAdminUser, useReactivateAdminUser,
+  type AdminUser,
+} from '@/lib/queries';
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
+  const [resetting, setResetting] = useState<AdminUser | null>(null);
   const [search, setSearch] = useState('');
+
+  const { data: companies = [] } = useAdminCompanies();
+  const { data: users = [], refetch } = useAdminUsers(selectedCompanyId || undefined);
+  const deactivate = useDeactivateAdminUser();
+  const reactivate = useReactivateAdminUser();
 
   const filtered = search.trim()
     ? users.filter((u) =>
@@ -34,35 +36,9 @@ export default function AdminUsersPage() {
       )
     : users;
 
-  async function loadCompanies() {
-    const c = await api.get<Company[]>('/admin/companies');
-    setCompanies(c);
-  }
-
-  async function loadUsers(companyId?: string) {
-    const params = companyId ? `?companyId=${companyId}` : '';
-    setUsers(await api.get<AdminUser[]>(`/admin/users${params}`));
-  }
-
-  useEffect(() => {
-    loadCompanies();
-    loadUsers();
-  }, []);
-
-  function handleCompanyFilter(cid: string) {
-    setSelectedCompanyId(cid);
-    loadUsers(cid || undefined);
-  }
-
   async function handleDeactivate(id: string) {
     if (!confirm('Desativar este usuário?')) return;
-    await api.delete(`/admin/users/${id}`);
-    loadUsers(selectedCompanyId || undefined);
-  }
-
-  async function handleActivate(id: string) {
-    await api.patch(`/admin/users/${id}`, { active: true });
-    loadUsers(selectedCompanyId || undefined);
+    await deactivate.mutateAsync(id);
   }
 
   return (
@@ -89,7 +65,7 @@ export default function AdminUsersPage() {
         </div>
         <select
           value={selectedCompanyId}
-          onChange={(e) => handleCompanyFilter(e.target.value)}
+          onChange={(e) => setSelectedCompanyId(e.target.value)}
           className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm min-w-48"
         >
           <option value="">Todas as empresas</option>
@@ -140,12 +116,15 @@ export default function AdminUsersPage() {
                   <Button size="sm" variant="outline" onClick={() => { setEditing(u); setOpen(true); }}>
                     Editar
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => setResetting(u)}>
+                    Redefinir senha
+                  </Button>
                   {u.active ? (
-                    <Button size="sm" variant="destructive" onClick={() => handleDeactivate(u.id)}>
+                    <Button size="sm" variant="destructive" onClick={() => handleDeactivate(u.id)} disabled={deactivate.isPending}>
                       Desativar
                     </Button>
                   ) : (
-                    <Button size="sm" variant="outline" onClick={() => handleActivate(u.id)}>
+                    <Button size="sm" variant="outline" onClick={() => reactivate.mutate(u.id)} disabled={reactivate.isPending}>
                       Ativar
                     </Button>
                   )}
@@ -159,10 +138,15 @@ export default function AdminUsersPage() {
       <AdminUserDialog
         open={open}
         onClose={() => setOpen(false)}
-        onSuccess={() => { setOpen(false); loadUsers(selectedCompanyId || undefined); }}
+        onSuccess={() => { setOpen(false); refetch(); }}
         user={editing}
         companies={companies}
         selectedCompanyId={selectedCompanyId}
+      />
+
+      <ResetPasswordDialog
+        user={resetting}
+        onClose={() => setResetting(null)}
       />
     </div>
   );

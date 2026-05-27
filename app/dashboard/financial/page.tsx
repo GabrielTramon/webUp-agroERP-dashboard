@@ -21,6 +21,11 @@ import {
 import { cn } from '@/lib/utils';
 
 const fmt      = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtQty   = (v: number) => {
+  if (!Number.isFinite(v)) return '0';
+  if (Number.isInteger(v)) return String(v);
+  return v.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+};
 const pct      = (v: number) => `${v.toFixed(1)}%`;
 const today    = () => new Date().toISOString().split('T')[0];
 
@@ -979,7 +984,7 @@ function ProductsTab() {
 
       {rows.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <KpiCard icon={ShoppingCart} label="Total vendido (qtd)" value={`${totQty} un`} />
+          <KpiCard icon={ShoppingCart} label="Total vendido (qtd)" value={`${fmtQty(totQty)} un`} />
           <KpiCard icon={TrendingUp}   label="Receita total" value={fmt(totRevenue)} />
           <KpiCard icon={BarChart2}    label="Lucro total"   value={fmt(totProfit)}
             color={totProfit >= 0 ? 'text-emerald-600' : 'text-destructive'} />
@@ -1015,7 +1020,7 @@ function ProductsTab() {
                   <TableCell className="text-right tabular-nums text-muted-foreground">
                     {r.costPrice != null ? fmt(r.costPrice) : <span className="text-xs italic">—</span>}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{r.quantity}</TableCell>
+                  <TableCell className="text-right tabular-nums">{fmtQty(r.quantity)}</TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">{fmt(r.revenue)}</TableCell>
                   <TableCell className={cn('text-right tabular-nums font-semibold',
                     r.profit >= 0 ? 'text-emerald-600' : 'text-destructive')}>
